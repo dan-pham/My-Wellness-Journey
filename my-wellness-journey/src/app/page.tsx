@@ -1,10 +1,25 @@
-export default function Home() {
+"use client";
+
+import { redirect } from "next/navigation";
+import React from "react";
+import Header from "./components/Header";
+import HeroSection from "./components/HeroSection";
+import FeaturesSection from "./components/FeaturesSection";
+import ResourcesSection from "./components/ResourcesSection";
+import CTASection from "./components/CTASection";
+import Footer from "./components/Footer";
+
+const HomePage = () => {
 	return (
-		<main className="min-h-screen flex items-center justify-center">
-			<div className="text-center">
-				<h1 className="text-4xl font-bold mb-4">Welcome to My Wellness Journey</h1>
-				<p className="text-xl text-gray-600">Start tracking your wellness journey today</p>
-			</div>
+		<main className="flex flex-col w-full bg-white min-h-[screen]">
+			<Header />
+			<HeroSection />
+			<FeaturesSection />
+			<ResourcesSection />
+			<CTASection />
+			<Footer />
 		</main>
 	);
-}
+};
+
+export default HomePage;
