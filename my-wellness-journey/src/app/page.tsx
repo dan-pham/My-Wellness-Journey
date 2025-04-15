@@ -8,15 +8,24 @@ import FeaturesSection from "./components/FeaturesSection";
 import ResourcesSection from "./components/ResourcesSection";
 import CTASection from "./components/CTASection";
 import Footer from "./components/Footer";
+import PageGradient from "./components/PageGradient";
 
 const HomePage = () => {
 	return (
-		<main className="flex flex-col w-full bg-white min-h-[screen]">
+		<main className="flex flex-col w-full min-h-[screen]">
 			<Header />
-			<HeroSection />
+
+			<PageGradient type="top">
+				<HeroSection />
+			</PageGradient>
+
 			<FeaturesSection />
 			<ResourcesSection />
-			<CTASection />
+
+			<PageGradient type="bottom">
+				<CTASection />
+			</PageGradient>
+
 			<Footer />
 		</main>
 	);

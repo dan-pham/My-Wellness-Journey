@@ -27,33 +27,35 @@ const ResourcesSection = () => {
 			title: "Title",
 			description: "Description description description description...",
 		},
-		{
-			id: 4,
-			category: "Category",
-			imageUrl:
-				"https://images.unsplash.com/photo-1512621776951-a57141f2eefd?q=80&w=1740&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-			title: "Title",
-			description: "Description description description description...",
-		},
 	];
 
 	return (
-		<section id="resources" className="flex flex-col items-center py-5 bg-white">
-			<h2 className="text-3xl font-bold text-primary-heading">Featured Wellness Resources</h2>
-			<p className="mt-3.5 text-lg text-center text-primary-subheading">
-				Curated content to support your health journey
-			</p>
+		<section id="resources" className="w-full bg-white mb-16">
+			<div className="mx-auto max-w-[1200px] px-4 md:px-8 py-16">
+				<div className="text-center mb-12">
+					<h2 className="text-3xl md:text-4xl font-bold text-primary-heading mb-4">
+						Featured Wellness Resources
+					</h2>
+					<p className="text-lg text-primary-subheading max-w-2xl mx-auto">
+						Curated content to support your health journey
+					</p>
+				</div>
 
-			<div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-				{resources.map((res) => (
-					<ResourceCard
-						key={res.id}
-						category={res.category}
-						imageUrl={res.imageUrl}
-						title={res.title}
-						description={res.description}
-					/>
-				))}
+				<div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+					{resources.slice(0, 3).map((res) => (
+						<div
+							key={res.id}
+							className="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow duration-300"
+						>
+							<ResourceCard
+								category={res.category}
+								imageUrl={res.imageUrl}
+								title={res.title}
+								description={res.description}
+							/>
+						</div>
+					))}
+				</div>
 			</div>
 		</section>
 	);

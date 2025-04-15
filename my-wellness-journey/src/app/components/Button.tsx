@@ -22,7 +22,9 @@ const Button = ({
 			onClick={onClick}
 			type={type}
 			disabled={disabled}
-			className={`px-6 py-3.5 text-lg font-medium text-white bg-primary-accent rounded-full shadow-sm transition-all duration-200 hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed ${className}`}
+			className={`px-6 py-3.5 text-lg font-medium text-white bg-primary-accent rounded-full shadow-sm 
+				transition-all duration-200 hover:transform hover:scale-105 hover:shadow-lg
+				disabled:opacity-50 disabled:cursor-not-allowed ${className}`}
 		>
 			{icon && <span className="ml-2">{icon}</span>}
 			{text}

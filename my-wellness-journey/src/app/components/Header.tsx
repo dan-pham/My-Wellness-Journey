@@ -1,11 +1,15 @@
 "use client";
-import React from "react";
+import React, { useState } from "react";
+import { FaBars } from "react-icons/fa";
 import Button from "./Button";
 import Image from "next/image";
 import NavItem from "./NavItem";
 import { usePathname } from "next/navigation";
+import DesktopNav from "./DesktopNav";
+import MobileMenu from "./MobileMenu";
 
 const Header = () => {
+	const [isMenuOpen, setIsMenuOpen] = useState(false);
 	const pathname = usePathname();
 
 	// Map routes to labels
@@ -28,29 +32,41 @@ const Header = () => {
 			console.log("Signing out...");
 			// signOutUser();
 		} else {
-			console.log("Redirecting to sign in...");
+			console.log("Get started clicked. Redirecting to sign in...");
 			// router.push("/signin");
 		}
 	};
 
 	return (
-		<header className="flex justify-between items-center px-20 w-full bg-white shadow-sm h-[100px] max-md:px-10 max-sm:px-5">
-			<Image src="/logo.png" alt="Logo" width={60} height={60} priority />
-			<nav
-				className="flex gap-10 items-center max-md:hidden"
-				role="navigation"
-				aria-label="Main navigation"
-			>
-				{navItems.map((item) => (
-					<NavItem
-						key={item.href}
-						label={item.label}
-						href={item.href}
-						isSelected={isSelected(item.href)}
-					/>
-				))}
-			</nav>
-			<Button text={isSignedIn ? "Sign out" : "Get started"} onClick={handleAuthClick} />
+		<header className="w-full bg-white shadow-sm h-[100px]">
+			<div className="mx-auto max-w-[1200px] h-full flex justify-between items-center px-4 md:px-8">
+				<Image src="/logo.png" alt="Logo" width={60} height={60} priority />
+
+				<DesktopNav navItems={navItems} isSelected={isSelected} />
+
+				<div className="flex items-center gap-4">
+					<div className="hidden md:block">
+						<Button text={isSignedIn ? "Sign out" : "Get started"} onClick={handleAuthClick} />
+					</div>
+
+					<button
+						className="md:hidden p-2 rounded-md hover:bg-primary-accent/10"
+						onClick={() => setIsMenuOpen(!isMenuOpen)}
+						aria-label="Toggle menu"
+					>
+						<FaBars className="w-6 h-6" color="#3A8C96" />
+					</button>
+				</div>
+
+				<MobileMenu
+					isOpen={isMenuOpen}
+					onClose={() => setIsMenuOpen(false)}
+					navItems={navItems}
+					isSelected={isSelected}
+					isSignedIn={isSignedIn}
+					onAuthClick={handleAuthClick}
+				/>
+			</div>
 		</header>
 	);
 };

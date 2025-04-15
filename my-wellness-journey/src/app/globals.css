@@ -10,10 +10,57 @@
 	--foreground: #171717;
 }
 
+html,
 body {
-	background-color: var(--background);
 	color: var(--foreground);
 	font-family: "Roboto", sans-serif;
 	-webkit-font-smoothing: antialiased;
 	-moz-osx-font-smoothing: grayscale;
+	max-width: 100%;
+	overflow-x: hidden;
+}
+
+/* Full-width section with background */
+.full-width-section {
+	width: 100%;
+	position: relative;
+	overflow: hidden;
+}
+
+/* Container for constrained content */
+.container {
+	width: 100%;
+	max-width: 1200px;
+	margin: 0 auto;
+	padding: 0 1rem;
+}
+
+/* Responsive padding for different screen sizes */
+@media (min-width: 640px) {
+	.container {
+		padding: 0 1.5rem;
+	}
+}
+
+@media (min-width: 1024px) {
+	.container {
+		padding: 0 2rem;
+	}
+}
+
+/* Utility class for full-width backgrounds */
+.full-width-bg {
+	width: 100vw;
+	position: relative;
+	left: 50%;
+	right: 50%;
+	margin-left: -50vw;
+	margin-right: -50vw;
+}
+
+/* Banner styles */
+.banner-content {
+	max-width: 1200px;
+	margin: 0 auto;
+	padding: 0 1rem;
 }
