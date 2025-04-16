@@ -1,7 +1,10 @@
 import React from "react";
 import Button from "../components/Button";
+import { useAuthNavigation } from "../hooks/useAuthNavigation";
 
 const CTASection = () => {
+	const { navigateToLogin } = useAuthNavigation();
+
 	return (
 		<section className="w-full">
 			<div className="mx-auto max-w-[1200px] px-4 md:px-8 py-20">
@@ -12,10 +15,7 @@ const CTASection = () => {
 					<p className="text-lg text-primary-subheading mb-8">
 						Join others in improving their quality of life through personalized resources
 					</p>
-					<Button
-						text="Create Your Free Account"
-						onClick={() => console.log("Create Your Free Account Clicked")}
-					/>
+					<Button text="Create Your Free Account" onClick={navigateToLogin} />
 				</div>
 			</div>
 		</section>

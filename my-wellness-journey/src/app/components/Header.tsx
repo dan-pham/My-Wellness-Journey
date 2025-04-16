@@ -3,14 +3,15 @@ import React, { useState } from "react";
 import { FaBars } from "react-icons/fa";
 import Button from "./Button";
 import Image from "next/image";
-import NavItem from "./NavItem";
 import { usePathname } from "next/navigation";
 import DesktopNav from "./DesktopNav";
 import MobileMenu from "./MobileMenu";
+import { useAuthNavigation } from "../hooks/useAuthNavigation";
 
 const Header = () => {
 	const [isMenuOpen, setIsMenuOpen] = useState(false);
 	const pathname = usePathname();
+	const { navigateToLogin, handleSignOut } = useAuthNavigation();
 
 	// Map routes to labels
 	const navItems = [
@@ -29,12 +30,12 @@ const Header = () => {
 
 	const handleAuthClick = () => {
 		if (isSignedIn) {
-			console.log("Signing out...");
-			// signOutUser();
+			handleSignOut();
 		} else {
-			console.log("Get started clicked. Redirecting to sign in...");
-			// router.push("/signin");
+			navigateToLogin();
 		}
+
+		setIsMenuOpen(false);
 	};
 
 	return (

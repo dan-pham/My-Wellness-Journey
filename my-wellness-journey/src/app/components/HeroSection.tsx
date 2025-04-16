@@ -1,7 +1,10 @@
 import Button from "../components/Button";
 import Image from "next/image";
+import { useAuthNavigation } from "../hooks/useAuthNavigation";
 
 const HeroSection = () => {
+	const { navigateToLogin } = useAuthNavigation();
+
 	return (
 		<section className="w-full mb-16">
 			<div className="mx-auto max-w-[1200px] min-h-[600px] flex flex-col md:flex-row items-center justify-between px-4 md:px-8 py-20">
@@ -12,10 +15,7 @@ const HeroSection = () => {
 					<p className="text-lg md:text-xl text-primary-subheading">
 						Trusted information tailored to your chronic condition needs
 					</p>
-					<Button
-						text="Get Started Today"
-						onClick={() => console.log("Get Started Today Clicked")}
-					/>
+					<Button text="Get Started Today" onClick={navigateToLogin} />
 				</div>
 				<div className="relative w-full max-w-[400px] aspect-square mt-8 md:mt-0">
 					<Image
