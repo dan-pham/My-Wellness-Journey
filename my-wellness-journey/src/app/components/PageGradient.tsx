@@ -17,7 +17,7 @@ const PageGradient = ({ children, type }: PageGradientProps) => {
 
 			{type === "bottom" && (
 				<div
-					className={`absolute bottom-0 left-0 right-0 h-[600px] bg-gradient-to-t from-[#E8F4FF] to-transparent pointer-events-none`}
+					className={`absolute bottom-0 left-0 right-0 h-[800px] bg-gradient-to-t from-[#E8F4FF] to-transparent pointer-events-none`}
 					style={{ zIndex: -1 }}
 				/>
 			)}

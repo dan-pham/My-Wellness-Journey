@@ -1,15 +1,24 @@
 import React from "react";
 import Image from "next/image";
-import { FaArrowRight } from "react-icons/fa";
+import { FaArrowRight, FaBookmark, FaRegBookmark } from "react-icons/fa";
 
 interface ResourceCardProps {
 	category: string;
 	imageUrl: string;
 	title: string;
 	description: string;
+	isSaved?: boolean;
+	onSaveToggle?: () => void;
 }
 
-const ResourceCard = ({ category, imageUrl, title, description }: ResourceCardProps) => {
+const ResourceCard = ({
+	category,
+	imageUrl,
+	title,
+	description,
+	isSaved = false,
+	onSaveToggle,
+}: ResourceCardProps) => {
 	return (
 		<div className="overflow-hidden rounded-xl h-full flex flex-col bg-white shadow-sm hover:shadow-md transition-shadow duration-200">
 			<div className="relative w-full aspect-video">
@@ -19,6 +28,17 @@ const ResourceCard = ({ category, imageUrl, title, description }: ResourceCardPr
 						{category}
 					</span>
 				</div>
+				<button
+					onClick={onSaveToggle}
+					className="absolute top-4 right-4 p-2 bg-white/80 backdrop-blur-sm rounded-full hover:bg-white transition-colors duration-200"
+					aria-label={isSaved ? "Remove from saved" : "Save resource"}
+				>
+					{isSaved ? (
+						<FaBookmark className="w-4 h-4 text-primary-accent" />
+					) : (
+						<FaRegBookmark className="w-4 h-4 text-primary-accent" />
+					)}
+				</button>
 			</div>
 
 			<div className="p-6 flex flex-col flex-grow">
