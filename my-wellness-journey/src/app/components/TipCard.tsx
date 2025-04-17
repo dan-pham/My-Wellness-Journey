@@ -8,9 +8,20 @@ interface TipCardProps {
 	source: string;
 	isSaved: boolean;
 	onSaveToggle: () => void;
+	showFullContent?: boolean;
+	onDismiss?: () => void;
 }
 
-const TipCard = ({ title, content, category, source, isSaved, onSaveToggle }: TipCardProps) => {
+const TipCard = ({
+	title,
+	content,
+	category,
+	source,
+	isSaved,
+	onSaveToggle,
+	showFullContent = false,
+	onDismiss,
+}: TipCardProps) => {
 	return (
 		<div className="bg-white rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-200 border border-gray-100">
 			<div className="flex items-start justify-between gap-4 mb-4">
@@ -26,12 +37,29 @@ const TipCard = ({ title, content, category, source, isSaved, onSaveToggle }: Ti
 				</button>
 			</div>
 
-			<h3 className="text-lg font-semibold text-primary-heading mb-3 line-clamp-2">{title}</h3>
+			<h3
+				className={`text-lg font-semibold text-primary-heading mb-3 ${
+					!showFullContent && "line-clamp-2"
+				}`}
+			>
+				{title}
+			</h3>
 
-			<p className="text-primary-subheading mb-4 line-clamp-3">{content}</p>
+			<p className={`text-primary-subheading mb-4 ${!showFullContent && "line-clamp-3"}`}>
+				{content}
+			</p>
 
 			<div className="flex items-center justify-between text-sm text-primary-subheading mt-auto">
-				<span>{source}</span>
+				<span className="italic">Source: {source}</span>
+
+				{onDismiss && (
+					<button
+						onClick={onDismiss}
+						className="text-primary-accent hover:text-primary-accent/80 transition-colors duration-200"
+					>
+						Dismiss for today
+					</button>
+				)}
 			</div>
 		</div>
 	);

@@ -23,7 +23,7 @@ const NavItem = ({ label, href, isSelected, className = "" }: NavItemProps) => {
 				{/* Desktop underline */}
 				<div className="hidden md:block">
 					{isSelected && (
-						<div className="absolute bottom-[-5px] -left-2 w-[calc(100%+16px)] h-1 rounded-sm bg-primary-accent" />
+						<div className="absolute bottom-[-2px] -left-1 w-[calc(100%+8px)] h-1 rounded-sm bg-primary-accent" />
 					)}
 				</div>
 

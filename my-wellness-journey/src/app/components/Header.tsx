@@ -3,6 +3,7 @@ import React, { useState } from "react";
 import { FaBars } from "react-icons/fa";
 import Button from "./Button";
 import Image from "next/image";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import DesktopNav from "./DesktopNav";
 import MobileMenu from "./MobileMenu";
@@ -14,20 +15,31 @@ const Header = () => {
 	const pathname = usePathname();
 	const { navigateToLogin, handleSignOut } = useAuthNavigation();
 
+	const isSignedIn = true;
+
 	// Map routes to labels
-	const navItems = [
-		{ label: "Home", href: "/" },
-		{ label: "Resources", href: "/resources" },
-		{ label: "Tips", href: "/tips" },
-	];
+	const navItems = isSignedIn
+		? [
+				{ label: "Dashboard", href: "/dashboard" },
+				{ label: "Resources", href: "/resources" },
+				{ label: "Tips", href: "/tips" },
+		  ]
+		: [
+				{ label: "Home", href: "/" },
+				{ label: "Resources", href: "/resources" },
+				{ label: "Tips", href: "/tips" },
+		  ];
 
 	// Handle selection for subpaths
 	const isSelected = (href: string) => {
-		return href === "/" ? pathname === "/" : pathname.startsWith(href);
+		if (href === "/") {
+			return pathname === "/";
+		}
+		if (href === "/dashboard") {
+			return pathname === "/dashboard";
+		}
+		return pathname.startsWith(href);
 	};
-
-	// Handle dynamic sign in/sign out button
-	const isSignedIn = false;
 
 	const handleAuthClick = () => {
 		if (isSignedIn) {
@@ -43,7 +55,17 @@ const Header = () => {
 		<PageGradient type="top">
 			<header className="w-full bg-white shadow-sm h-[100px]">
 				<div className="mx-auto max-w-[1200px] h-full flex justify-between items-center px-4 md:px-8">
-					<Image src="/logo.png" alt="Logo" width={60} height={60} priority />
+					<Link href={isSignedIn ? "/dashboard" : "/"} className="flex items-center gap-2">
+						<Image
+							src="/logo.png"
+							alt="My Wellness Journey Logo"
+							width={60}
+							height={60}
+							className="rounded-full"
+							priority
+						/>
+						<p className="text-xl font-bold text-primary-accent">My Wellness Journey</p>
+					</Link>
 
 					<DesktopNav navItems={navItems} isSelected={isSelected} />
 
