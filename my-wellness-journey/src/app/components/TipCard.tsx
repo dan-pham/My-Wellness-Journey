@@ -1,4 +1,4 @@
-import { FaBookmark, FaRegBookmark, FaClock } from "react-icons/fa";
+import { FaBookmark, FaRegBookmark } from "react-icons/fa";
 
 interface TipCardProps {
 	id: string;

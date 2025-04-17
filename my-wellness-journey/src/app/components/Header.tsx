@@ -1,6 +1,6 @@
 "use client";
 import React, { useState } from "react";
-import { FaBars } from "react-icons/fa";
+import { FaBars, FaUserCircle } from "react-icons/fa";
 import Button from "./Button";
 import Image from "next/image";
 import Link from "next/link";
@@ -13,7 +13,7 @@ import PageGradient from "./PageGradient";
 const Header = () => {
 	const [isMenuOpen, setIsMenuOpen] = useState(false);
 	const pathname = usePathname();
-	const { navigateToLogin, handleSignOut } = useAuthNavigation();
+	const { navigateToLogin } = useAuthNavigation();
 
 	const isSignedIn = true;
 
@@ -42,12 +42,7 @@ const Header = () => {
 	};
 
 	const handleAuthClick = () => {
-		if (isSignedIn) {
-			handleSignOut();
-		} else {
-			navigateToLogin();
-		}
-
+		navigateToLogin();
 		setIsMenuOpen(false);
 	};
 
@@ -70,8 +65,17 @@ const Header = () => {
 					<DesktopNav navItems={navItems} isSelected={isSelected} />
 
 					<div className="flex items-center gap-4">
-						<div className="hidden md:block">
-							<Button text={isSignedIn ? "Sign out" : "Get started"} onClick={handleAuthClick} />
+						<div className="hidden md:flex items-center gap-8">
+							{!isSignedIn && <Button text="Get started" onClick={handleAuthClick} />}
+							{isSignedIn && (
+								<Link
+									href="/profile"
+									className="p-2 rounded-full hover:bg-primary-accent/10 transition-colors duration-200"
+									aria-label="My Profile"
+								>
+									<FaUserCircle className="w-12 h-12 text-primary-accent" />
+								</Link>
+							)}
 						</div>
 
 						<button
