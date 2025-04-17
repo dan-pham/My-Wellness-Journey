@@ -4,7 +4,23 @@ import { useState } from "react";
 import ResourceCard from "../components/ResourceCard";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
-import { FaArrowRight, FaSearch } from "react-icons/fa";
+import { FaArrowRight } from "react-icons/fa";
+import MedlinePlusSearch from "../components/MedlinePlusSearch";
+import { MedlinePlusSearchResult } from "../../lib/api/medlineplus";
+
+// Default health topics image URLs to use for MedlinePlus results
+const healthTopicImages = [
+	"https://images.unsplash.com/photo-1505751172876-fa1923c5c528",
+	"https://images.unsplash.com/photo-1532938911079-1b06ac7ceec7",
+	"https://images.unsplash.com/photo-1490645935967-10de6ba17061",
+	"https://images.unsplash.com/photo-1576091160550-2173dba999ef",
+	"https://images.unsplash.com/photo-1493836512294-502baa1986e2",
+	"https://images.unsplash.com/photo-1576091160399-112ba8d25d1d",
+	"https://images.unsplash.com/photo-1533090481720-856c6e3c1fdc",
+	"https://images.unsplash.com/photo-1600443299762-7a743123645d",
+	"https://images.unsplash.com/photo-1521453510357-5c7a77db7074",
+	"https://images.unsplash.com/photo-1585435557343-3b092031a831",
+];
 
 const sampleResources = [
 	{
@@ -99,8 +115,9 @@ const sampleResources = [
 
 export default function ResourcesPage() {
 	const [savedResources, setSavedResources] = useState<Set<string>>(new Set());
-	const [searchQuery, setSearchQuery] = useState("");
 	const [isAuthenticated, setIsAuthenticated] = useState(false);
+	const [medlineResults, setMedlineResults] = useState<MedlinePlusSearchResult[]>([]);
+	const [showingSearchResults, setShowingSearchResults] = useState(false);
 
 	const handleSaveToggle = (resourceId: string) => {
 		setSavedResources((prev) => {
@@ -114,10 +131,35 @@ export default function ResourcesPage() {
 		});
 	};
 
-	const handleSearch = (e: React.FormEvent) => {
-		e.preventDefault();
-		console.log("Searching for:", searchQuery);
+	const handleMedlineResultSelect = (result: MedlinePlusSearchResult) => {
+		// Display the selected MedlinePlus result
+		setMedlineResults([result]);
+		setShowingSearchResults(true);
 	};
+
+	// Convert MedlinePlus results to ResourceCard format
+	const medlineResourcesToShow = medlineResults.map((result, index) => {
+		// Generate a unique ID for each MedlinePlus result
+		const id = `medline-${result.url.replace(/[^a-zA-Z0-9]/g, "-")}`;
+
+		// Get a category from the result's categories or use "Health"
+		const category =
+			result.categories && result.categories.length > 0 ? result.categories[0] : "Health";
+
+		// Get an image from our array of health topic images using modulo for rotation
+		const imageUrl = healthTopicImages[index % healthTopicImages.length];
+
+		return {
+			id,
+			title: result.title,
+			description: result.snippet,
+			category,
+			imageUrl,
+			url: result.url,
+			isSaved: savedResources.has(id),
+			isMedlinePlus: true,
+		};
+	});
 
 	return (
 		<main className="min-h-screen w-full">
@@ -154,38 +196,60 @@ export default function ResourcesPage() {
 						<h2 className="text-2xl font-semibold text-primary-heading">Resources</h2>
 					</div>
 
-					{/* Search Bar */}
-					<form onSubmit={handleSearch} className="relative mb-8">
-						<div className="flex gap-2">
-							<div className="relative flex-1">
-								<input
-									type="text"
-									placeholder="Search by condition, topic, or keyword"
-									value={searchQuery}
-									onChange={(e) => setSearchQuery(e.target.value)}
-									className="w-full px-4 py-2 text-primary-heading bg-white border border-gray-200 rounded-full focus:ring-2 focus:ring-primary-accent/20 focus:border-primary-accent outline-none transition-all duration-200 pl-10"
-								/>
-								<FaSearch className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-primary-subheading" />
-							</div>
-							<button
-								type="submit"
-								className="px-6 py-2 bg-primary-accent text-white rounded-full hover:bg-primary-accent/90 transition-colors duration-200 font-medium"
-							>
-								Search
-							</button>
-						</div>
-					</form>
-
-					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-						{sampleResources.map((resource) => (
-							<ResourceCard
-								key={resource.id}
-								{...resource}
-								isSaved={savedResources.has(resource.id)}
-								onSaveToggle={() => handleSaveToggle(resource.id)}
-							/>
-						))}
+					{/* MedlinePlus Search */}
+					<div className="mb-10">
+						<h3 className="text-lg font-semibold mb-4">Search MedlinePlus Health Information</h3>
+						<MedlinePlusSearch
+							onResultSelect={handleMedlineResultSelect}
+							onResultsFound={(results) => {
+								setMedlineResults(results);
+								setShowingSearchResults(results.length > 0);
+							}}
+							maxResults={10}
+						/>
 					</div>
+
+					{/* Display MedlinePlus Results */}
+					{showingSearchResults && medlineResourcesToShow.length > 0 && (
+						<div className="mb-8">
+							<div className="flex items-center justify-between mb-4">
+								<h3 className="text-lg font-semibold">Search Results</h3>
+								<button
+									onClick={() => setShowingSearchResults(false)}
+									className="text-primary-accent hover:text-primary-accent/80 transition-colors duration-200"
+								>
+									Back to Curated Resources
+								</button>
+							</div>
+							<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+								{medlineResourcesToShow.map((resource) => (
+									<ResourceCard
+										key={resource.id}
+										{...resource}
+										isSaved={savedResources.has(resource.id)}
+										onSaveToggle={() => handleSaveToggle(resource.id)}
+									/>
+								))}
+							</div>
+						</div>
+					)}
+
+					{/* Show curated resources when not showing search results */}
+					{!showingSearchResults && (
+						<>
+							<h3 className="text-lg font-semibold mb-4 mt-10">Curated Resources</h3>
+							<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+								{sampleResources.map((resource) => (
+									<ResourceCard
+										key={resource.id}
+										{...resource}
+										isSaved={savedResources.has(resource.id)}
+										onSaveToggle={() => handleSaveToggle(resource.id)}
+									/>
+								))}
+							</div>
+						</>
+					)}
 				</section>
 			</div>
 
