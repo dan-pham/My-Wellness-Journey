@@ -212,15 +212,6 @@ export default function ResourcesPage() {
 					{/* Display MedlinePlus Results */}
 					{showingSearchResults && medlineResourcesToShow.length > 0 && (
 						<div className="mb-8">
-							<div className="flex items-center justify-between mb-4">
-								<h3 className="text-lg font-semibold">Search Results</h3>
-								<button
-									onClick={() => setShowingSearchResults(false)}
-									className="text-primary-accent hover:text-primary-accent/80 transition-colors duration-200"
-								>
-									Back to Curated Resources
-								</button>
-							</div>
 							<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 								{medlineResourcesToShow.map((resource) => (
 									<ResourceCard
@@ -237,7 +228,7 @@ export default function ResourcesPage() {
 					{/* Show curated resources when not showing search results */}
 					{!showingSearchResults && (
 						<>
-							<h3 className="text-lg font-semibold mb-4 mt-10">Curated Resources</h3>
+							<h3 className="text-lg font-semibold mb-4 mt-10">Recent Searches</h3>
 							<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 								{sampleResources.map((resource) => (
 									<ResourceCard
