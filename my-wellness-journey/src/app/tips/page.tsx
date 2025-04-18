@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import TipCard from "../components/TipCard";
 import { FaSearch, FaArrowRight } from "react-icons/fa";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
-import { HealthTip, fetchHealthTips } from "../../lib/api/healthTips";
+import { MedlinePlusSearchResult } from "../../lib/api/medlineplus";
 
 export default function TipsPage() {
 	const [isAuthenticated] = useState(false);
@@ -13,59 +13,49 @@ export default function TipsPage() {
 	const [searchQuery, setSearchQuery] = useState("");
 	const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
-	const [healthTips, setHealthTips] = useState<HealthTip[]>([]);
+	const [medlineTips, setMedlineTips] = useState<MedlinePlusSearchResult[]>([]);
 	const [isLoading, setIsLoading] = useState(false);
-	const [apiError, setApiError] = useState<string | null>(null);
+	const [error, setError] = useState<string | null>(null);
 
-	// Fetch health tips from health.gov API on component mount
-	useEffect(() => {
-		const getHealthTips = async () => {
-			setIsLoading(true);
-			setApiError(null);
+	const fetchMedlineTips = async (query: string) => {
+		setIsLoading(true);
+		setError(null);
 
-			try {
-				// Fetch 10 health tips from the API
-				const response = await fetchHealthTips([], 10);
+		try {
+			const response = await fetch(
+				`/api/medlineplus?query=${encodeURIComponent(query)}&maxResults=10`
+			);
 
-				if (response.success) {
-					setHealthTips(response.tips);
-				} else {
-					throw new Error("Failed to fetch health tips");
-				}
-			} catch (error) {
-				console.error("Error fetching health tips:", error);
-				setApiError("Unable to load health tips.");
-			} finally {
-				setIsLoading(false);
+			if (!response.ok) {
+				throw new Error(`API error: ${response.status}`);
 			}
-		};
 
-		getHealthTips();
-	}, []);
+			const data = await response.json();
+
+			if (data.error) {
+				throw new Error(data.error);
+			}
+
+			const searchResults = data.results || [];
+			setMedlineTips(searchResults);
+
+			if (searchResults.length === 0) {
+				setError("No results found. Try different search terms.");
+			}
+		} catch (err) {
+			setError("Failed to search MedlinePlus. Please try again later.");
+			console.error("MedlinePlus search error:", err);
+		} finally {
+			setIsLoading(false);
+		}
+	};
 
 	const handleSearch = async (e: React.FormEvent) => {
 		e.preventDefault();
 
 		if (!searchQuery.trim()) return;
 
-		setIsLoading(true);
-		setApiError(null);
-
-		try {
-			// Search for health tips related to the query
-			const response = await fetchHealthTips([searchQuery], 10);
-
-			if (response.success) {
-				setHealthTips(response.tips);
-			} else {
-				throw new Error("Failed to search health tips");
-			}
-		} catch (error) {
-			console.error("Error searching health tips:", error);
-			setApiError("Unable to search health tips. Please try again later.");
-		} finally {
-			setIsLoading(false);
-		}
+		await fetchMedlineTips(searchQuery);
 	};
 
 	const handleSaveToggle = (tipId: string) => {
@@ -80,12 +70,32 @@ export default function TipsPage() {
 		});
 	};
 
+	const medlineTipsToShow = medlineTips.map((result) => {
+		// Generate a unique ID for each tip
+		const id = `medline-${result.url.replace(/[^a-zA-Z0-9]/g, "-")}`;
+
+		// Get a category from the result's categories or use "Health"
+		const category =
+			result.categories && result.categories.length > 0 ? result.categories[0] : "Health Tip";
+
+		return {
+			id,
+			title: result.title,
+			content: result.snippet,
+			category,
+			source: "MedlinePlus",
+			isSaved: savedTips.has(id),
+			onSaveToggle: () => handleSaveToggle(id),
+			showFullContent: false,
+		};
+	});
+
 	// Filter tips by category if selected
 	const filteredTips = selectedCategory
-		? healthTips.filter((tip) =>
+		? medlineTipsToShow.filter((tip) =>
 				tip.category.toLowerCase().includes(selectedCategory.toLowerCase())
 		  )
-		: healthTips;
+		: medlineTipsToShow;
 
 	const categories = ["All", "Mental Health", "Physical Health", "Nutrition", "Exercise", "Sleep"];
 
@@ -153,7 +163,7 @@ export default function TipsPage() {
 						</form>
 
 						{/* Error message */}
-						{apiError && <div className="bg-red-50 text-red-700 p-3 rounded-md">{apiError}</div>}
+						{error && <div className="bg-red-50 text-red-700 p-3 rounded-md">{error}</div>}
 
 						{/* Category Filter Chips */}
 						<div className="flex flex-wrap gap-2">
@@ -188,11 +198,7 @@ export default function TipsPage() {
 							{filteredTips.map((tip) => (
 								<TipCard
 									key={tip.id}
-									id={tip.id}
-									title={tip.title}
-									content={tip.content.replace(/<[^>]*>?/gm, "")} // Strip HTML tags
-									category={tip.category}
-									source={tip.source || "health.gov"}
+									{...tip}
 									isSaved={savedTips.has(tip.id)}
 									onSaveToggle={() => handleSaveToggle(tip.id)}
 								/>

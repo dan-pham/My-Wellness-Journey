@@ -6,6 +6,7 @@ export interface HealthTip {
 	conditions: string[];
 	source?: string;
 	sourceUrl?: string;
+	imageUrl?: string;
 }
 
 export interface HealthTipsResponse {
@@ -75,6 +76,7 @@ export async function fetchHealthTips(
 				conditions: conditions.length ? conditions : ["general"],
 				source: "health.gov",
 				sourceUrl: resource.AccessibleVersion || resource.HealthfinderUrl,
+				imageUrl: resource.ImageUrl || null,
 			};
 		});
 

@@ -21,8 +21,14 @@ const ResourceCard = ({
 }: ResourceCardProps) => {
 	return (
 		<div className="overflow-hidden rounded-xl h-full flex flex-col bg-white shadow-sm hover:shadow-md transition-shadow duration-200">
-			<div className="relative w-full aspect-video">
-				<Image src={imageUrl} alt={title} fill className="object-cover" />
+			<div className="relative w-full aspect-[4/3]">
+				<Image
+					src={imageUrl}
+					alt={title}
+					fill
+					className="object-cover"
+					sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+				/>
 				<div className="absolute top-4 left-4">
 					<span className="px-4 py-2 text-sm font-semibold text-white bg-primary-heading/90 rounded-full backdrop-blur-sm">
 						{category}
