@@ -1,104 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import TipCard from "../components/TipCard";
 import { FaSearch, FaArrowRight } from "react-icons/fa";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
-
-const sampleTips = [
-	{
-		id: "1",
-		title: "Stay Hydrated Throughout the Day",
-		content:
-			"Drink at least 8 glasses of water daily. Set reminders on your phone to help you maintain this habit.",
-		category: "Physical Health",
-		source: "Mayo Clinic",
-		isSaved: false,
-	},
-	{
-		id: "2",
-		title: "Practice the 5-4-3-2-1 Grounding Technique",
-		content:
-			"When feeling anxious, identify 5 things you can see, 4 you can touch, 3 you can hear, 2 you can smell, and 1 you can taste.",
-		category: "Mental Health",
-		source: "Mayo Clinic",
-		isSaved: false,
-	},
-	{
-		id: "3",
-		title: "Morning Stretching Routine",
-		content:
-			"Start your day with 5-10 minutes of gentle stretching. Focus on your neck, shoulders, and back to improve flexibility and reduce stiffness.",
-		category: "Exercise",
-		source: "Mayo Clinic",
-		isSaved: false,
-	},
-	{
-		id: "4",
-		title: "Mindful Eating Practice",
-		content:
-			"Take time to eat without distractions. Notice the colors, smells, textures, and flavors of your food. This helps with digestion and portion control.",
-		category: "Nutrition",
-		source: "Mayo Clinic",
-		isSaved: false,
-	},
-	{
-		id: "5",
-		title: "Create a Relaxing Bedtime Routine",
-		content:
-			"Establish a consistent sleep schedule. Dim the lights, avoid screens, and try relaxing activities like reading or gentle stretching 30 minutes before bed.",
-		category: "Sleep",
-		source: "Mayo Clinic",
-		isSaved: false,
-	},
-	{
-		id: "6",
-		title: "Practice Deep Breathing",
-		content:
-			"Try the 4-7-8 breathing technique: Inhale for 4 seconds, hold for 7 seconds, exhale for 8 seconds. Repeat 4 times to reduce stress.",
-		category: "Mental Health",
-		source: "Mayo Clinic",
-		readTime: "2 min read",
-		isSaved: false,
-	},
-	{
-		id: "7",
-		title: "Incorporate More Plant-Based Foods",
-		content:
-			"Add one extra serving of vegetables to each meal. Try meatless Mondays to explore new plant-based protein sources.",
-		category: "Nutrition",
-		source: "Mayo Clinic",
-		isSaved: false,
-	},
-	{
-		id: "8",
-		title: "Take Regular Movement Breaks",
-		content:
-			"For every hour of sitting, take a 2-3 minute movement break. Stand up, stretch, or walk around to improve circulation.",
-		category: "Exercise",
-		source: "Mayo Clinic",
-		isSaved: false,
-	},
-	{
-		id: "9",
-		title: "Practice Gratitude Daily",
-		content:
-			"Write down three things you're grateful for each day. This simple practice can improve mental well-being and reduce stress.",
-		category: "Mental Health",
-		source: "Mayo Clinic",
-		isSaved: false,
-	},
-	{
-		id: "10",
-		title: "Smart Snacking Strategies",
-		content:
-			"Keep healthy snacks like nuts, fruits, or yogurt readily available. Plan your snacks to avoid impulsive eating.",
-		category: "Nutrition",
-		source: "Mayo Clinic",
-		isSaved: false,
-	},
-];
+import { HealthTip, fetchHealthTips } from "../../lib/api/healthTips";
 
 export default function TipsPage() {
 	const [isAuthenticated] = useState(false);
@@ -106,9 +13,59 @@ export default function TipsPage() {
 	const [searchQuery, setSearchQuery] = useState("");
 	const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
-	const handleSearch = (e: React.FormEvent) => {
+	const [healthTips, setHealthTips] = useState<HealthTip[]>([]);
+	const [isLoading, setIsLoading] = useState(false);
+	const [apiError, setApiError] = useState<string | null>(null);
+
+	// Fetch health tips from health.gov API on component mount
+	useEffect(() => {
+		const getHealthTips = async () => {
+			setIsLoading(true);
+			setApiError(null);
+
+			try {
+				// Fetch 10 health tips from the API
+				const response = await fetchHealthTips([], 10);
+
+				if (response.success) {
+					setHealthTips(response.tips);
+				} else {
+					throw new Error("Failed to fetch health tips");
+				}
+			} catch (error) {
+				console.error("Error fetching health tips:", error);
+				setApiError("Unable to load health tips.");
+			} finally {
+				setIsLoading(false);
+			}
+		};
+
+		getHealthTips();
+	}, []);
+
+	const handleSearch = async (e: React.FormEvent) => {
 		e.preventDefault();
-		console.log("Searching for:", searchQuery);
+
+		if (!searchQuery.trim()) return;
+
+		setIsLoading(true);
+		setApiError(null);
+
+		try {
+			// Search for health tips related to the query
+			const response = await fetchHealthTips([searchQuery], 10);
+
+			if (response.success) {
+				setHealthTips(response.tips);
+			} else {
+				throw new Error("Failed to search health tips");
+			}
+		} catch (error) {
+			console.error("Error searching health tips:", error);
+			setApiError("Unable to search health tips. Please try again later.");
+		} finally {
+			setIsLoading(false);
+		}
 	};
 
 	const handleSaveToggle = (tipId: string) => {
@@ -122,6 +79,13 @@ export default function TipsPage() {
 			return newSaved;
 		});
 	};
+
+	// Filter tips by category if selected
+	const filteredTips = selectedCategory
+		? healthTips.filter((tip) =>
+				tip.category.toLowerCase().includes(selectedCategory.toLowerCase())
+		  )
+		: healthTips;
 
 	const categories = ["All", "Mental Health", "Physical Health", "Nutrition", "Exercise", "Sleep"];
 
@@ -139,12 +103,16 @@ export default function TipsPage() {
 							</button>
 						</div>
 						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-							{sampleTips
+							{filteredTips
 								.filter((tip) => savedTips.has(tip.id))
 								.map((tip) => (
 									<TipCard
 										key={tip.id}
-										{...tip}
+										id={tip.id}
+										title={tip.title}
+										content={tip.content.replace(/<\/?[^>]+(>|$)/g, "")} // Strip HTML tags
+										category={tip.category}
+										source={tip.source || "health.gov"}
 										isSaved={true}
 										onSaveToggle={() => handleSaveToggle(tip.id)}
 									/>
@@ -176,12 +144,16 @@ export default function TipsPage() {
 								</div>
 								<button
 									type="submit"
+									disabled={isLoading}
 									className="px-6 py-2 bg-primary-accent text-white rounded-full hover:bg-primary-accent/90 transition-colors duration-200 font-medium"
 								>
 									Search
 								</button>
 							</div>
 						</form>
+
+						{/* Error message */}
+						{apiError && <div className="bg-red-50 text-red-700 p-3 rounded-md">{apiError}</div>}
 
 						{/* Category Filter Chips */}
 						<div className="flex flex-wrap gap-2">
@@ -203,17 +175,39 @@ export default function TipsPage() {
 						</div>
 					</div>
 
+					{/* Loading state */}
+					{isLoading && (
+						<div className="flex justify-center items-center py-12">
+							<div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-accent"></div>
+						</div>
+					)}
+
 					{/* Tips Grid */}
-					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-						{sampleTips.map((tip) => (
-							<TipCard
-								key={tip.id}
-								{...tip}
-								isSaved={savedTips.has(tip.id)}
-								onSaveToggle={() => handleSaveToggle(tip.id)}
-							/>
-						))}
-					</div>
+					{!isLoading && (
+						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+							{filteredTips.map((tip) => (
+								<TipCard
+									key={tip.id}
+									id={tip.id}
+									title={tip.title}
+									content={tip.content.replace(/<[^>]*>?/gm, "")} // Strip HTML tags
+									category={tip.category}
+									source={tip.source || "health.gov"}
+									isSaved={savedTips.has(tip.id)}
+									onSaveToggle={() => handleSaveToggle(tip.id)}
+								/>
+							))}
+						</div>
+					)}
+
+					{/* No results message */}
+					{!isLoading && filteredTips.length === 0 && (
+						<div className="text-center py-12">
+							<p className="text-primary-subheading">
+								No tips found. Try a different search or category.
+							</p>
+						</div>
+					)}
 				</section>
 			</div>
 			<Footer />
