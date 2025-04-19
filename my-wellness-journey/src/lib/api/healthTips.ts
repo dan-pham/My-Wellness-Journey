@@ -92,3 +92,49 @@ export async function fetchHealthTips(
 		};
 	}
 }
+
+export async function fetchHealthTipById(id: string): Promise<HealthTip | null> {
+	try {
+		const response = await fetch(`/api/myhealthfinder/${id}`);
+
+		if (!response.ok) {
+			throw new Error(`API error: ${response.status}`);
+		}
+
+		const data = await response.json();
+
+		// Check if we got a valid response
+		if (!data.Result || !data.Result.Resources || !data.Result.Resources.Resource) {
+			return null;
+		}
+
+		// Get resource
+		const resource = Array.isArray(data.Result.Resources.Resource)
+			? data.Result.Resources.Resource[0]
+			: data.Result.Resources.Resource;
+
+		if (!resource) {
+			return null;
+		}
+
+		// Extract content
+		const sectionContent = resource.Sections?.section?.[0]?.Content || "";
+
+		// Get high-resolution image URL if available
+		const imageUrl = resource.ImageUrl?.replace("Small", "Large") || resource.ImageUrl;
+
+		return {
+			id: resource.Id,
+			title: resource.Title || "Health Resource",
+			content: sectionContent || resource.MyHFDescription || "No content available",
+			category: resource.Categories || "Health Information",
+			conditions: ["general"],
+			source: "health.gov",
+			sourceUrl: resource.AccessibleVersion || resource.HealthfinderUrl,
+			imageUrl: imageUrl,
+		};
+	} catch (error) {
+		console.error("Error fetching health tip by ID:", error);
+		return null;
+	}
+}

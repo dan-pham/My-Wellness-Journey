@@ -1,21 +1,26 @@
 import React from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { FaArrowRight, FaBookmark, FaRegBookmark } from "react-icons/fa";
 
 interface ResourceCardProps {
+	id: string;
 	category: string;
 	imageUrl: string;
 	title: string;
 	description: string;
+	url?: string;
 	isSaved?: boolean;
 	onSaveToggle?: () => void;
 }
 
 const ResourceCard = ({
+	id,
 	category,
 	imageUrl,
 	title,
 	description,
+	url,
 	isSaved = false,
 	onSaveToggle,
 }: ResourceCardProps) => {
@@ -35,7 +40,10 @@ const ResourceCard = ({
 					</span>
 				</div>
 				<button
-					onClick={onSaveToggle}
+					onClick={(e) => {
+						e.stopPropagation();
+						onSaveToggle;
+					}}
 					className="absolute top-4 right-4 p-2 bg-white/80 backdrop-blur-sm rounded-full hover:bg-white transition-colors duration-200"
 					aria-label={isSaved ? "Remove from saved" : "Save resource"}
 				>
@@ -52,9 +60,12 @@ const ResourceCard = ({
 				<p className="text-primary-subheading mb-4 flex-grow line-clamp-3">{description}</p>
 
 				<div className="mt-auto flex justify-end">
-					<button className="text-primary-accent px-4 py-2 rounded-full hover:bg-primary-accent/10 font-semibold transition-colors duration-200 flex items-center gap-2">
+					<Link
+						href={`/resources/${id}`}
+						className="text-primary-accent px-4 py-2 rounded-full hover:bg-primary-accent/10 font-semibold transition-colors duration-200 flex items-center gap-2"
+					>
 						Read More <FaArrowRight className="w-4 h-4" color="#3A8C96" />
-					</button>
+					</Link>
 				</div>
 			</div>
 		</div>
