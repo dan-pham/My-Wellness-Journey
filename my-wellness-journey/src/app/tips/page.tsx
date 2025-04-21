@@ -71,8 +71,11 @@ export default function TipsPage() {
 	};
 
 	const medlineTipsToShow = medlineTips.map((result) => {
-		// Generate a unique ID for each tip
-		const id = `medline-${result.url.replace(/[^a-zA-Z0-9]/g, "-")}`;
+		// Better way to create a unique, valid ID that can be easily decoded later
+		// First, encode the URL to make it safe for use in a URL
+		const encodedUrl = encodeURIComponent(result.url);
+		// Create a unique ID that starts with 'medline-'
+		const id = `medline-${encodedUrl}`;
 
 		// Get a category from the result's categories or use "Health"
 		const category =
@@ -87,6 +90,7 @@ export default function TipsPage() {
 			isSaved: savedTips.has(id),
 			onSaveToggle: () => handleSaveToggle(id),
 			showFullContent: false,
+			sourceUrl: result.url,
 		};
 	});
 
@@ -96,8 +100,6 @@ export default function TipsPage() {
 				tip.category.toLowerCase().includes(selectedCategory.toLowerCase())
 		  )
 		: medlineTipsToShow;
-
-	const categories = ["All", "Mental Health", "Physical Health", "Nutrition", "Exercise", "Sleep"];
 
 	return (
 		<main className="min-h-screen w-full">
@@ -125,6 +127,7 @@ export default function TipsPage() {
 										source={tip.source || "health.gov"}
 										isSaved={true}
 										onSaveToggle={() => handleSaveToggle(tip.id)}
+										sourceUrl={tip.sourceUrl}
 									/>
 								))}
 						</div>
@@ -164,25 +167,6 @@ export default function TipsPage() {
 
 						{/* Error message */}
 						{error && <div className="bg-red-50 text-red-700 p-3 rounded-md">{error}</div>}
-
-						{/* Category Filter Chips */}
-						<div className="flex flex-wrap gap-2">
-							{categories.map((category) => (
-								<button
-									key={category}
-									onClick={() => setSelectedCategory(category === "All" ? null : category)}
-									className={`px-4 py-2 rounded-full text-sm font-medium transition-colors duration-200 
-                                            ${
-																							selectedCategory === category ||
-																							(category === "All" && !selectedCategory)
-																								? "bg-primary-accent text-white"
-																								: "bg-gray-100 text-primary-subheading hover:bg-gray-200"
-																						}`}
-								>
-									{category}
-								</button>
-							))}
-						</div>
 					</div>
 
 					{/* Loading state */}

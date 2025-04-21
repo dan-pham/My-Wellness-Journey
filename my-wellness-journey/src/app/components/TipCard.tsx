@@ -1,4 +1,5 @@
 import { FaBookmark, FaRegBookmark } from "react-icons/fa";
+import Link from "next/link";
 
 interface TipCardProps {
 	id: string;
@@ -9,10 +10,13 @@ interface TipCardProps {
 	isSaved: boolean;
 	onSaveToggle: () => void;
 	showFullContent?: boolean;
+	isDaily?: boolean;
 	onDismiss?: () => void;
+	sourceUrl: string;
 }
 
 const TipCard = ({
+	id,
 	title,
 	content,
 	category,
@@ -20,7 +24,9 @@ const TipCard = ({
 	isSaved,
 	onSaveToggle,
 	showFullContent = false,
+	isDaily = false,
 	onDismiss,
+	sourceUrl,
 }: TipCardProps) => {
 	return (
 		<div className="bg-white rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-200 border border-gray-100">
@@ -28,15 +34,34 @@ const TipCard = ({
 				<span className="px-3 py-1 text-sm font-semibold text-white bg-primary-heading/90 rounded-full">
 					{category}
 				</span>
-				<button
-					onClick={onSaveToggle}
-					className="text-primary-accent hover:scale-110 transition-transform duration-200"
-					aria-label={isSaved ? "Remove from saved" : "Save tip"}
-				>
-					{isSaved ? <FaBookmark className="w-4 h-4" /> : <FaRegBookmark className="w-4 h-4" />}
-				</button>
+
+				{/* Action Buttons */}
+				<div className="flex items-center gap-2">
+					{/* Save Button */}
+					<button
+						onClick={(e) => {
+							e.stopPropagation();
+							onSaveToggle();
+						}}
+						className="text-primary-accent hover:scale-110 transition-transform duration-200"
+						aria-label={isSaved ? "Remove from saved" : "Save tip"}
+					>
+						{isSaved ? <FaBookmark className="w-4 h-4" /> : <FaRegBookmark className="w-4 h-4" />}
+					</button>
+
+					{/* Dismiss Button (Only for Daily Tips) */}
+					{isDaily && onDismiss && (
+						<button
+							onClick={onDismiss}
+							className="text-primary-accent hover:text-primary-accent/80 transition-colors duration-200"
+						>
+							Dismiss for today
+						</button>
+					)}
+				</div>
 			</div>
 
+			{/* Content */}
 			<h3
 				className={`text-lg font-semibold text-primary-heading mb-3 ${
 					!showFullContent && "line-clamp-2"
@@ -52,14 +77,13 @@ const TipCard = ({
 			<div className="flex items-center justify-between text-sm text-primary-subheading mt-auto">
 				<span className="italic">Source: {source}</span>
 
-				{onDismiss && (
-					<button
-						onClick={onDismiss}
-						className="text-primary-accent hover:text-primary-accent/80 transition-colors duration-200"
-					>
-						Dismiss for today
-					</button>
-				)}
+				{/* Read more */}
+				<Link
+					href={`/tips/${id}`}
+					className="text-primary-accent hover:text-primary-accent/80 transition-colors duration-200"
+				>
+					Read More
+				</Link>
 			</div>
 		</div>
 	);
