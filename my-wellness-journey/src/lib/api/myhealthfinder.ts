@@ -1,44 +1,42 @@
-export interface HealthTip {
+export interface MyHealthFinder {
 	id: string;
 	title: string;
 	content: string;
 	category: string;
 	conditions: string[];
+	sourceUrl: string;
 	source?: string;
-	sourceUrl?: string;
 	imageUrl?: string;
 }
 
-export interface HealthTipsResponse {
+export interface MyHealthFinderResponse {
 	success: boolean;
-	tips: HealthTip[];
+	healthData: MyHealthFinder[];
 }
 
 /**
- * Fetch health tips based on user conditions
+ * Fetch health data based on user conditions
  * @param conditions - Array of chronic conditions the user has
- * @param count - Number of tips to retrieve (default: 1 for daily tip)
- * @returns Promise with health tips
+ * @param count - Number of data to retrieve (default: 1)
+ * @returns Promise with health data
  */
-export async function fetchHealthTips(
-	conditions: string[] = [],
+export async function fetchHealthData(
+	query: string,
 	count: number = 1
-): Promise<HealthTipsResponse> {
+): Promise<MyHealthFinderResponse> {
 	try {
-		const keywords = conditions.join(" ");
-
 		const params = new URLSearchParams({
-			keyword: keywords || "general",
+			keyword: query || "general",
 			lang: "en",
 			categoryId: "health-condition",
 			limit: count.toString(),
 		});
 
-		const response = await fetch(`/api/healthtips?${params.toString()}`);
+		const response = await fetch(`/api/myhealthfinder?${params.toString()}`);
 
 		if (!response.ok) {
-			console.error("Health tips API error:", response.status);
-			throw new Error(`Health tips API error: ${response.status}`);
+			console.error("HealthFinder API error:", response.status);
+			throw new Error(`HealthFinder API error: ${response.status}`);
 		}
 
 		const data = await response.json();
@@ -56,7 +54,7 @@ export async function fetchHealthTips(
 			? data.Result.Resources.Resource
 			: [data.Result.Resources.Resource];
 
-		const tips: HealthTip[] = resources.map((resource: any) => {
+		const healthData: MyHealthFinder[] = resources.map((resource: any) => {
 			// Extract the first section content, which contains the main information
 			const sectionContent = resource.Sections?.section?.[0]?.Content || "";
 
@@ -64,8 +62,6 @@ export async function fetchHealthTips(
 			let category = "Health Information";
 			if (resource.Categories && resource.Categories.trim() !== "") {
 				category = resource.Categories;
-			} else if (conditions.length > 0) {
-				category = conditions[0].charAt(0).toUpperCase() + conditions[0].slice(1);
 			}
 
 			return {
@@ -73,7 +69,7 @@ export async function fetchHealthTips(
 				title: resource.Title || "Health Tip",
 				content: sectionContent || resource.MyHFDescription || "No content available",
 				category: category,
-				conditions: conditions.length ? conditions : ["general"],
+				conditions: query,
 				source: "health.gov",
 				sourceUrl: resource.AccessibleVersion || resource.HealthfinderUrl,
 				imageUrl: resource.ImageUrl || null,
@@ -82,18 +78,18 @@ export async function fetchHealthTips(
 
 		return {
 			success: true,
-			tips,
+			healthData,
 		};
 	} catch (error) {
-		console.error("Error fetching health tips:", error);
+		console.error("Error fetching health data:", error);
 		return {
 			success: false,
-			tips: [],
+			healthData: [],
 		};
 	}
 }
 
-export async function fetchHealthTipById(id: string): Promise<HealthTip | null> {
+export async function fetchHealthDataById(id: string): Promise<MyHealthFinder | null> {
 	try {
 		const response = await fetch(`/api/myhealthfinder/${id}`);
 
@@ -134,7 +130,7 @@ export async function fetchHealthTipById(id: string): Promise<HealthTip | null> 
 			imageUrl: imageUrl,
 		};
 	} catch (error) {
-		console.error("Error fetching health tip by ID:", error);
+		console.error("Error fetching health data by ID:", error);
 		return null;
 	}
 }

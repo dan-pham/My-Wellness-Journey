@@ -1,105 +1,58 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import TipCard from "../components/TipCard";
 import { FaSearch, FaArrowRight } from "react-icons/fa";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
-import { MedlinePlusSearchResult } from "../../lib/api/medlineplus";
+import { useAuthStore } from "../../stores/authStore";
+import { useHealthStore } from "../../stores/healthStore";
+import { useSavedStore } from "../../stores/savedStore";
 
 export default function TipsPage() {
-	const [isAuthenticated] = useState(false);
-	const [savedTips, setSavedTips] = useState<Set<string>>(new Set());
 	const [searchQuery, setSearchQuery] = useState("");
-	const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
-	const [medlineTips, setMedlineTips] = useState<MedlinePlusSearchResult[]>([]);
-	const [isLoading, setIsLoading] = useState(false);
-	const [error, setError] = useState<string | null>(null);
+	// Zustand stores
+	const { isAuthenticated } = useAuthStore();
+	const { tips, tipsLoading, tipsError, fetchTips } = useHealthStore();
+	const {
+		savedTips,
+		addTip,
+		removeTip,
+		fetchSaved: fetchSavedTips,
+		loading: savedLoading,
+	} = useSavedStore();
 
-	const fetchMedlineTips = async (query: string) => {
-		setIsLoading(true);
-		setError(null);
-
-		try {
-			const response = await fetch(
-				`/api/medlineplus?query=${encodeURIComponent(query)}&maxResults=10`
-			);
-
-			if (!response.ok) {
-				throw new Error(`API error: ${response.status}`);
-			}
-
-			const data = await response.json();
-
-			if (data.error) {
-				throw new Error(data.error);
-			}
-
-			const searchResults = data.results || [];
-			setMedlineTips(searchResults);
-
-			if (searchResults.length === 0) {
-				setError("No results found. Try different search terms.");
-			}
-		} catch (err) {
-			setError("Failed to search MedlinePlus. Please try again later.");
-			console.error("MedlinePlus search error:", err);
-		} finally {
-			setIsLoading(false);
-		}
-	};
+	useEffect(() => {
+		fetchSavedTips();
+	}, [fetchSavedTips]);
 
 	const handleSearch = async (e: React.FormEvent) => {
 		e.preventDefault();
 
 		if (!searchQuery.trim()) return;
 
-		await fetchMedlineTips(searchQuery);
+		await fetchTips(searchQuery, 10);
 	};
 
 	const handleSaveToggle = (tipId: string) => {
-		setSavedTips((prev) => {
-			const newSaved = new Set(prev);
-			if (newSaved.has(tipId)) {
-				newSaved.delete(tipId);
-			} else {
-				newSaved.add(tipId);
-			}
-			return newSaved;
-		});
+		const isSaved = savedTips.some((id) => id === tipId);
+		if (isSaved) {
+			removeTip(tipId);
+		} else {
+			addTip(tipId);
+		}
 	};
 
-	const medlineTipsToShow = medlineTips.map((result) => {
-		// Better way to create a unique, valid ID that can be easily decoded later
-		// First, encode the URL to make it safe for use in a URL
-		const encodedUrl = encodeURIComponent(result.url);
-		// Create a unique ID that starts with 'medline-'
-		const id = `medline-${encodedUrl}`;
-
-		// Get a category from the result's categories or use "Health"
-		const category =
-			result.categories && result.categories.length > 0 ? result.categories[0] : "Health Tip";
-
-		return {
-			id,
-			title: result.title,
-			content: result.snippet,
-			category,
-			source: "MedlinePlus",
-			isSaved: savedTips.has(id),
-			onSaveToggle: () => handleSaveToggle(id),
-			showFullContent: false,
-			sourceUrl: result.url,
-		};
-	});
-
-	// Filter tips by category if selected
-	const filteredTips = selectedCategory
-		? medlineTipsToShow.filter((tip) =>
-				tip.category.toLowerCase().includes(selectedCategory.toLowerCase())
-		  )
-		: medlineTipsToShow;
+	const tipsToShow = tips.map((tip) => ({
+		id: `medline-${encodeURIComponent(tip.url)}`,
+		title: tip.title,
+		content: tip.snippet,
+		category: "general",
+		source: "MedlinePlus.gov",
+		sourceUrl: tip.url,
+		isSaved: savedTips.some((id) => id === tip.url),
+	}));
 
 	return (
 		<main className="min-h-screen w-full">
@@ -115,8 +68,8 @@ export default function TipsPage() {
 							</button>
 						</div>
 						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-							{filteredTips
-								.filter((tip) => savedTips.has(tip.id))
+							{tipsToShow
+								.filter((tip) => savedTips.some((id) => id === tip.id))
 								.map((tip) => (
 									<TipCard
 										key={tip.id}
@@ -157,7 +110,7 @@ export default function TipsPage() {
 								</div>
 								<button
 									type="submit"
-									disabled={isLoading}
+									disabled={tipsLoading}
 									className="px-6 py-2 bg-primary-accent text-white rounded-full hover:bg-primary-accent/90 transition-colors duration-200 font-medium"
 								>
 									Search
@@ -166,24 +119,24 @@ export default function TipsPage() {
 						</form>
 
 						{/* Error message */}
-						{error && <div className="bg-red-50 text-red-700 p-3 rounded-md">{error}</div>}
+						{tipsError && <div className="bg-red-50 text-red-700 p-3 rounded-md">{tipsError}</div>}
 					</div>
 
 					{/* Loading state */}
-					{isLoading && (
+					{tipsLoading && (
 						<div className="flex justify-center items-center py-12">
 							<div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-accent"></div>
 						</div>
 					)}
 
 					{/* Tips Grid */}
-					{!isLoading && (
+					{!tipsLoading && (
 						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-							{filteredTips.map((tip) => (
+							{tipsToShow.map((tip) => (
 								<TipCard
 									key={tip.id}
 									{...tip}
-									isSaved={savedTips.has(tip.id)}
+									isSaved={savedTips.some((id) => id === tip.sourceUrl)}
 									onSaveToggle={() => handleSaveToggle(tip.id)}
 								/>
 							))}
@@ -191,7 +144,7 @@ export default function TipsPage() {
 					)}
 
 					{/* No results message */}
-					{!isLoading && filteredTips.length === 0 && (
+					{!tipsLoading && tipsToShow.length === 0 && (
 						<div className="text-center py-12">
 							<p className="text-primary-subheading">
 								No tips found. Try a different search or category.

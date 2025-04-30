@@ -1,75 +1,59 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import ResourceCard from "../components/ResourceCard";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import { FaArrowRight, FaSearch } from "react-icons/fa";
-import { fetchHealthTips, HealthTip } from "../../lib/api/healthTips";
+import { useAuthStore } from "../../stores/authStore";
+import { useHealthStore } from "../../stores/healthStore";
+import { useSavedStore } from "../../stores/savedStore";
 
 export default function ResourcesPage() {
-	const [savedResources, setSavedResources] = useState<Set<string>>(new Set());
-	const [isAuthenticated, setIsAuthenticated] = useState(false);
-
-	const [healthFinderResources, setHealthFinderResources] = useState<any[]>([]);
-	const [isLoading, setIsLoading] = useState(false);
-	const [error, setError] = useState<string | null>(null);
 	const [searchQuery, setSearchQuery] = useState("");
 
-	const fetchHealthResources = async (query: string = "") => {
-		setIsLoading(true);
-		setError(null);
+	// Zustand stores
+	const { isAuthenticated } = useAuthStore();
+	const { resources, resourcesLoading, resourcesError, fetchResources } = useHealthStore();
+	const {
+		savedResources,
+		addResource,
+		removeResource,
+		fetchSaved: fetchSavedResources,
+		loading: savedLoading,
+	} = useSavedStore();
 
-		try {
-			const response = await fetchHealthTips(query ? [query] : [], 10);
-
-			if (response.success && response.tips.length > 0) {
-				setHealthFinderResources(response.tips);
-			} else {
-				throw new Error("No resources found");
-			}
-		} catch (err) {
-			console.error("Error fetching health resources:", err);
-			setError("Unable to load health resources.");
-
-			if (healthFinderResources.length === 0) {
-				setHealthFinderResources([]);
-			}
-		} finally {
-			setIsLoading(false);
-		}
-	};
+	useEffect(() => {
+		fetchSavedResources();
+	}, [fetchSavedResources]);
 
 	const handleSearch = async (e: React.FormEvent) => {
 		e.preventDefault();
 		if (!searchQuery.trim()) return;
 
-		fetchHealthResources(searchQuery);
+		await fetchResources(searchQuery);
 	};
 
 	const handleSaveToggle = (resourceId: string) => {
-		setSavedResources((prev) => {
-			const newSaved = new Set(prev);
-			if (newSaved.has(resourceId)) {
-				newSaved.delete(resourceId);
-			} else {
-				newSaved.add(resourceId);
-			}
-			return newSaved;
-		});
+		const isSaved = savedResources.some((id) => id === resourceId);
+		if (isSaved) {
+			removeResource(resourceId);
+		} else {
+			addResource(resourceId);
+		}
 	};
 
-	const healthFinderResourcesToShow = healthFinderResources.map((tip: HealthTip) => {
+	const resourcesToShow = resources.map((resource) => {
 		const fallbackImageUrl = "https://images.unsplash.com/photo-1505751172876-fa1923c5c528";
 
 		return {
-			id: tip.id,
-			title: tip.title,
-			description: tip.content.replace(/<[^>]*>?/gm, "").substring(0, 150) + "...",
-			category: tip.category || "Health",
-			imageUrl: tip.imageUrl || fallbackImageUrl,
-			url: tip.sourceUrl,
-			isSaved: savedResources.has(tip.id),
+			id: resource.id,
+			title: resource.title,
+			description: resource.content,
+			category: resource.category,
+			imageUrl: resource.imageUrl ? resource.imageUrl : fallbackImageUrl,
+			sourceUrl: resource.sourceUrl,
+			isSaved: savedResources.some((id) => id === resource.id),
 		};
 	});
 
@@ -88,8 +72,8 @@ export default function ResourcesPage() {
 							</button>
 						</div>
 						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-							{healthFinderResourcesToShow
-								.filter((resource) => savedResources.has(resource.id))
+							{resourcesToShow
+								.filter((resource) => savedResources.some((id) => id === resource.id))
 								.map((resource) => (
 									<ResourceCard
 										key={resource.id}
@@ -123,33 +107,35 @@ export default function ResourcesPage() {
 							</div>
 							<button
 								type="submit"
-								disabled={isLoading}
+								disabled={resourcesLoading}
 								className="px-6 py-2 bg-primary-accent text-white rounded-full hover:bg-primary-accent/90 transition-colors duration-200 font-medium"
 							>
-								{isLoading ? "Searching..." : "Search"}
+								{resourcesLoading ? "Searching..." : "Search"}
 							</button>
 						</div>
 					</form>
 
 					{/* Error message */}
-					{error && <div className="bg-red-50 text-red-700 p-3 rounded-md mb-6">{error}</div>}
+					{resourcesError && (
+						<div className="bg-red-50 text-red-700 p-3 rounded-md mb-6">{resourcesError}</div>
+					)}
 
 					{/* Loading state */}
-					{isLoading && (
+					{resourcesLoading && (
 						<div className="flex justify-center items-center py-12">
 							<div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-accent"></div>
 						</div>
 					)}
 
 					{/* Resources Grid */}
-					{!isLoading && (
+					{!resourcesLoading && (
 						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-							{healthFinderResourcesToShow.map((resource) => (
+							{resourcesToShow.map((resource) => (
 								<ResourceCard
 									key={resource.id}
 									{...resource}
-									isSaved={savedResources.has(resource.id)}
-									onSaveToggle={() => handleSaveToggle(resource.id)}
+									isSaved={savedResources.some((id) => id === resource.id)}
+									onSaveToggle={() => handleSaveToggle(resource.sourceUrl)}
 								/>
 							))}
 						</div>

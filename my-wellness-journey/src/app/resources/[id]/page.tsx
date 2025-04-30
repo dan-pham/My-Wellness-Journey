@@ -6,7 +6,7 @@ import Image from "next/image";
 import { FaArrowLeft, FaBookmark, FaRegBookmark, FaShare } from "react-icons/fa";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
-import { fetchHealthTipById } from "../../../lib/api/healthTips";
+import { fetchHealthDataById } from "../../../lib/api/myhealthfinder";
 
 export default function ResourceDetailPage() {
 	const router = useRouter();
@@ -25,7 +25,7 @@ export default function ResourceDetailPage() {
 
 			try {
 				// Fetch by ID directly
-				const resource = await fetchHealthTipById(id);
+				const resource = await fetchHealthDataById(id);
 
 				if (resource) {
 					setResource({

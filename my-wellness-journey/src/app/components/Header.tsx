@@ -1,5 +1,4 @@
 "use client";
-import React, { useState } from "react";
 import { FaBars, FaUserCircle } from "react-icons/fa";
 import Button from "./Button";
 import Image from "next/image";
@@ -9,13 +8,16 @@ import DesktopNav from "./DesktopNav";
 import MobileMenu from "./MobileMenu";
 import { useAuthNavigation } from "../hooks/useAuthNavigation";
 import PageGradient from "./PageGradient";
+import { useUIStore } from "../../stores/uiStore";
 
 const Header = () => {
-	const [isMenuOpen, setIsMenuOpen] = useState(false);
 	const pathname = usePathname();
 	const { navigateToLogin } = useAuthNavigation();
 
 	const isSignedIn = true;
+
+	// Zustand store
+	const { isMobileMenuOpen, toggleMobileMenu } = useUIStore();
 
 	// Map routes to labels
 	const navItems = isSignedIn
@@ -43,7 +45,6 @@ const Header = () => {
 
 	const handleAuthClick = () => {
 		navigateToLogin();
-		setIsMenuOpen(false);
 	};
 
 	return (
@@ -80,7 +81,7 @@ const Header = () => {
 
 						<button
 							className="md:hidden p-2 rounded-md hover:bg-primary-accent/10"
-							onClick={() => setIsMenuOpen(!isMenuOpen)}
+							onClick={toggleMobileMenu}
 							aria-label="Toggle menu"
 						>
 							<FaBars className="w-6 h-6" color="#3A8C96" />
@@ -88,8 +89,8 @@ const Header = () => {
 					</div>
 
 					<MobileMenu
-						isOpen={isMenuOpen}
-						onClose={() => setIsMenuOpen(false)}
+						isOpen={isMobileMenuOpen}
+						onClose={toggleMobileMenu}
 						navItems={navItems}
 						isSelected={isSelected}
 						isSignedIn={isSignedIn}
