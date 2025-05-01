@@ -8,6 +8,9 @@ import { FaArrowRight, FaSearch } from "react-icons/fa";
 import { useAuthStore } from "../../stores/authStore";
 import { useHealthStore } from "../../stores/healthStore";
 import { useSavedStore } from "../../stores/savedStore";
+import { Loading } from "../components/Loading";
+import { Error } from "../components/Error";
+import { EmptyState } from "../components/EmptyState";
 
 export default function ResourcesPage() {
 	const [searchQuery, setSearchQuery] = useState("");
@@ -42,6 +45,11 @@ export default function ResourcesPage() {
 			addResource(resourceId);
 		}
 	};
+
+	if (resourcesLoading || savedLoading) return <Loading />;
+	if (resourcesError) return <Error message={resourcesError} />;
+	if (resources.length === 0)
+		return <EmptyState message="No resources found. Try a different search." />;
 
 	const resourcesToShow = resources.map((resource) => {
 		const fallbackImageUrl = "https://images.unsplash.com/photo-1505751172876-fa1923c5c528";
@@ -114,18 +122,6 @@ export default function ResourcesPage() {
 							</button>
 						</div>
 					</form>
-
-					{/* Error message */}
-					{resourcesError && (
-						<div className="bg-red-50 text-red-700 p-3 rounded-md mb-6">{resourcesError}</div>
-					)}
-
-					{/* Loading state */}
-					{resourcesLoading && (
-						<div className="flex justify-center items-center py-12">
-							<div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-accent"></div>
-						</div>
-					)}
 
 					{/* Resources Grid */}
 					{!resourcesLoading && (

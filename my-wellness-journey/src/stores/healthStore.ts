@@ -31,7 +31,6 @@ export const useHealthStore = create<HealthStore>((set) => ({
 			);
 			if (!response.ok) throw new Error("API error");
 			const data = await response.json();
-			console.log("MedlinePlus data:", data);
 			set({ tips: data.results, tipsLoading: false });
 		} catch (error) {
 			set({ tipsError: "Failed to fetch health tips", tipsLoading: false });

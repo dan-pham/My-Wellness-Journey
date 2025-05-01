@@ -8,6 +8,9 @@ import Footer from "../components/Footer";
 import { useAuthStore } from "../../stores/authStore";
 import { useHealthStore } from "../../stores/healthStore";
 import { useSavedStore } from "../../stores/savedStore";
+import { Loading } from "../components/Loading";
+import { Error } from "../components/Error";
+import { EmptyState } from "../components/EmptyState";
 
 export default function TipsPage() {
 	const [searchQuery, setSearchQuery] = useState("");
@@ -43,6 +46,10 @@ export default function TipsPage() {
 			addTip(tipId);
 		}
 	};
+
+	if (tipsLoading || savedLoading) return <Loading />;
+	if (tipsError) return <Error message={tipsError} />;
+	if (tips.length === 0) return <EmptyState message="No tips found. Try a different search." />;
 
 	const tipsToShow = tips.map((tip) => ({
 		id: `medline-${encodeURIComponent(tip.url)}`,
@@ -117,17 +124,7 @@ export default function TipsPage() {
 								</button>
 							</div>
 						</form>
-
-						{/* Error message */}
-						{tipsError && <div className="bg-red-50 text-red-700 p-3 rounded-md">{tipsError}</div>}
 					</div>
-
-					{/* Loading state */}
-					{tipsLoading && (
-						<div className="flex justify-center items-center py-12">
-							<div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-accent"></div>
-						</div>
-					)}
 
 					{/* Tips Grid */}
 					{!tipsLoading && (
@@ -140,15 +137,6 @@ export default function TipsPage() {
 									onSaveToggle={() => handleSaveToggle(tip.id)}
 								/>
 							))}
-						</div>
-					)}
-
-					{/* No results message */}
-					{!tipsLoading && tipsToShow.length === 0 && (
-						<div className="text-center py-12">
-							<p className="text-primary-subheading">
-								No tips found. Try a different search or category.
-							</p>
 						</div>
 					)}
 				</section>
