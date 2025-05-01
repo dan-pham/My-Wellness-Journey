@@ -8,6 +8,7 @@ import Footer from "../components/Footer";
 import { useAuthStore } from "../../stores/authStore";
 import { useHealthStore } from "../../stores/healthStore";
 import { useSavedStore } from "../../stores/savedStore";
+import { useTipsHistoryStore } from "../../stores/tipsHistoryStore";
 import { Loading } from "../components/Loading";
 import { Error } from "../components/Error";
 import { EmptyState } from "../components/EmptyState";
@@ -25,6 +26,7 @@ export default function TipsPage() {
 		fetchSaved: fetchSavedTips,
 		loading: savedLoading,
 	} = useSavedStore();
+	const recentTips = useTipsHistoryStore((state) => state.getRecentTips(3));
 
 	useEffect(() => {
 		fetchSavedTips();
@@ -65,6 +67,28 @@ export default function TipsPage() {
 		<main className="min-h-screen w-full">
 			<Header />
 			<div className="max-w-[1200px] mx-auto px-6 md:px-12 lg:px-16 py-12">
+				{/* Recently Viewed Tips */}
+				{recentTips.length > 0 && (
+					<section className="mb-16">
+						<div className="flex items-center justify-between mb-8">
+							<h2 className="text-2xl font-semibold text-primary-heading">Recently Viewed</h2>
+							<button className="text-primary-accent hover:text-primary-accent/80 transition-colors duration-200 flex items-center gap-2">
+								View All <FaArrowRight className="w-4 h-4" color="#3A8C96" />
+							</button>
+						</div>
+						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+							{recentTips.map((tip) => (
+								<TipCard
+									key={tip.id}
+									{...tip}
+									isSaved={savedTips.some((id) => id === tip.id)}
+									onSaveToggle={() => handleSaveToggle(tip.id)}
+								/>
+							))}
+						</div>
+					</section>
+				)}
+
 				{/* My Saved Tips Section */}
 				{isAuthenticated && (
 					<section className="mb-16">

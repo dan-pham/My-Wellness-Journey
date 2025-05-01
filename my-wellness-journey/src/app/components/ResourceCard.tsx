@@ -2,6 +2,7 @@ import React from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { FaArrowRight, FaBookmark, FaRegBookmark } from "react-icons/fa";
+import { useResourcesHistoryStore } from "../../stores/resourcesHistoryStore";
 
 interface ResourceCardProps {
 	id: string;
@@ -9,7 +10,7 @@ interface ResourceCardProps {
 	imageUrl: string;
 	title: string;
 	description: string;
-	url?: string;
+	sourceUrl: string;
 	isSaved?: boolean;
 	onSaveToggle?: () => void;
 }
@@ -20,10 +21,23 @@ const ResourceCard = ({
 	imageUrl,
 	title,
 	description,
-	url,
+	sourceUrl,
 	isSaved = false,
 	onSaveToggle,
 }: ResourceCardProps) => {
+	const addResource = useResourcesHistoryStore((state) => state.addResource);
+
+	const handleResourceClick = () => {
+		addResource({
+			id,
+			title,
+			description,
+			category,
+			imageUrl,
+			sourceUrl,
+		});
+	};
+
 	return (
 		<div className="overflow-hidden rounded-xl h-full flex flex-col bg-white shadow-sm hover:shadow-md transition-shadow duration-200">
 			<div className="relative w-full aspect-[4/3]">
@@ -62,6 +76,7 @@ const ResourceCard = ({
 				<div className="mt-auto flex justify-end">
 					<Link
 						href={`/resources/${id}`}
+						onClick={handleResourceClick}
 						className="text-primary-accent px-4 py-2 rounded-full hover:bg-primary-accent/10 font-semibold transition-colors duration-200 flex items-center gap-2"
 					>
 						Read More <FaArrowRight className="w-4 h-4" color="#3A8C96" />

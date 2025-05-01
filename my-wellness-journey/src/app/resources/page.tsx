@@ -8,6 +8,7 @@ import { FaArrowRight, FaSearch } from "react-icons/fa";
 import { useAuthStore } from "../../stores/authStore";
 import { useHealthStore } from "../../stores/healthStore";
 import { useSavedStore } from "../../stores/savedStore";
+import { useResourcesHistoryStore } from "../../stores/resourcesHistoryStore";
 import { Loading } from "../components/Loading";
 import { Error } from "../components/Error";
 import { EmptyState } from "../components/EmptyState";
@@ -25,6 +26,7 @@ export default function ResourcesPage() {
 		fetchSaved: fetchSavedResources,
 		loading: savedLoading,
 	} = useSavedStore();
+	const recentResources = useResourcesHistoryStore((state) => state.getRecentResources(3));
 
 	useEffect(() => {
 		fetchSavedResources();
@@ -70,6 +72,28 @@ export default function ResourcesPage() {
 			<Header />
 
 			<div className="max-w-[1200px] mx-auto px-6 md:px-12 lg:px-16 py-12">
+				{/* Recently Viewed Resources Section */}
+				{recentResources.length > 0 && (
+					<section className="mb-16">
+						<div className="flex items-center justify-between mb-8">
+							<h2 className="text-2xl font-semibold text-primary-heading">Recently Viewed</h2>
+							<button className="text-primary-accent hover:text-primary-accent/80 transition-colors duration-200 flex items-center gap-2">
+								View All <FaArrowRight className="w-4 h-4" color="#3A8C96" />
+							</button>
+						</div>
+						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+							{recentResources.map((resource) => (
+								<ResourceCard
+									key={resource.id}
+									{...resource}
+									isSaved={savedResources.some((id) => id === resource.id)}
+									onSaveToggle={() => handleSaveToggle(resource.id)}
+								/>
+							))}
+						</div>
+					</section>
+				)}
+
 				{/* My Saved Resources Section */}
 				{isAuthenticated && (
 					<section className="mb-16">

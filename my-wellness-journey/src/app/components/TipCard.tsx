@@ -1,5 +1,6 @@
 import { FaBookmark, FaRegBookmark } from "react-icons/fa";
 import Link from "next/link";
+import { useTipsHistoryStore } from "../../stores/tipsHistoryStore";
 
 interface TipCardProps {
 	id: string;
@@ -28,6 +29,19 @@ const TipCard = ({
 	onDismiss,
 	sourceUrl,
 }: TipCardProps) => {
+	const addTip = useTipsHistoryStore((state) => state.addTip);
+
+	const handleTipClick = () => {
+		addTip({
+			id,
+			title,
+			content,
+			category,
+			source,
+			sourceUrl,
+		});
+	};
+
 	return (
 		<div className="bg-white rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-200 border border-gray-100">
 			<div className="flex items-start justify-between gap-4 mb-4">
@@ -80,6 +94,7 @@ const TipCard = ({
 				{/* Read more */}
 				<Link
 					href={`/tips/${id}`}
+					onClick={handleTipClick}
 					className="text-primary-accent hover:text-primary-accent/80 transition-colors duration-200"
 				>
 					Read More
