@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import ResourceCard from "../components/ResourceCard";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
@@ -8,13 +8,13 @@ import { FaArrowRight, FaSearch } from "react-icons/fa";
 import { useAuthStore } from "../../stores/authStore";
 import { useHealthStore } from "../../stores/healthStore";
 import { useSavedStore } from "../../stores/savedStore";
-import { useResourcesHistoryStore } from "../../stores/resourcesHistoryStore";
 import { Loading } from "../components/Loading";
 import { Error } from "../components/Error";
 import { EmptyState } from "../components/EmptyState";
 
 export default function ResourcesPage() {
 	const [searchQuery, setSearchQuery] = useState("");
+	const [hasSearched, setHasSearched] = useState(false);
 
 	// Zustand stores
 	const { isAuthenticated } = useAuthStore();
@@ -26,9 +26,9 @@ export default function ResourcesPage() {
 		fetchSaved: fetchSavedResources,
 		loading: savedLoading,
 	} = useSavedStore();
-	const recentResources = useResourcesHistoryStore((state) => state.getRecentResources(3));
 
 	useEffect(() => {
+		// Fetch saved resources only once on component mount
 		fetchSavedResources();
 	}, [fetchSavedResources]);
 
@@ -36,66 +36,55 @@ export default function ResourcesPage() {
 		e.preventDefault();
 		if (!searchQuery.trim()) return;
 
+		setHasSearched(true);
 		await fetchResources(searchQuery);
 	};
 
 	const handleSaveToggle = (resourceId: string) => {
-		const isSaved = savedResources.some((id) => id === resourceId);
-		if (isSaved) {
+		if (savedResources.includes(resourceId)) {
 			removeResource(resourceId);
 		} else {
 			addResource(resourceId);
 		}
 	};
 
-	if (resourcesLoading || savedLoading) return <Loading />;
-	if (resourcesError) return <Error message={resourcesError} />;
-	if (resources.length === 0)
-		return <EmptyState message="No resources found. Try a different search." />;
+	// Memoize the resource data to prevent re-renders
+	const resourcesToShow = useMemo(() => {
+		if (!resources.length) return [];
+		
+		return resources.map((resource) => {
+			const fallbackImageUrl = "https://images.unsplash.com/photo-1505751172876-fa1923c5c528";
+			return {
+				id: resource.id,
+				title: resource.title,
+				description: resource.content,
+				category: resource.category,
+				imageUrl: resource.imageUrl ? resource.imageUrl : fallbackImageUrl,
+				sourceUrl: resource.sourceUrl,
+			};
+		});
+	}, [resources]);
 
-	const resourcesToShow = resources.map((resource) => {
-		const fallbackImageUrl = "https://images.unsplash.com/photo-1505751172876-fa1923c5c528";
-
-		return {
-			id: resource.id,
-			title: resource.title,
-			description: resource.content,
-			category: resource.category,
-			imageUrl: resource.imageUrl ? resource.imageUrl : fallbackImageUrl,
-			sourceUrl: resource.sourceUrl,
-			isSaved: savedResources.some((id) => id === resource.id),
-		};
-	});
+	// Handle loading state for initial load
+	if (savedLoading && !isAuthenticated) {
+		return (
+			<main className="min-h-screen w-full">
+				<Header />
+				<div className="max-w-[1200px] mx-auto px-6 md:px-12 lg:px-16 py-12">
+					<Loading />
+				</div>
+				<Footer />
+			</main>
+		);
+	}
 
 	return (
 		<main className="min-h-screen w-full">
 			<Header />
 
 			<div className="max-w-[1200px] mx-auto px-6 md:px-12 lg:px-16 py-12">
-				{/* Recently Viewed Resources Section */}
-				{recentResources.length > 0 && (
-					<section className="mb-16">
-						<div className="flex items-center justify-between mb-8">
-							<h2 className="text-2xl font-semibold text-primary-heading">Recently Viewed</h2>
-							<button className="text-primary-accent hover:text-primary-accent/80 transition-colors duration-200 flex items-center gap-2">
-								View All <FaArrowRight className="w-4 h-4" color="#3A8C96" />
-							</button>
-						</div>
-						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-							{recentResources.map((resource) => (
-								<ResourceCard
-									key={resource.id}
-									{...resource}
-									isSaved={savedResources.some((id) => id === resource.id)}
-									onSaveToggle={() => handleSaveToggle(resource.id)}
-								/>
-							))}
-						</div>
-					</section>
-				)}
-
 				{/* My Saved Resources Section */}
-				{isAuthenticated && (
+				{isAuthenticated && savedResources.length > 0 && resourcesToShow.length > 0 && (
 					<section className="mb-16">
 						<div className="flex items-center justify-between mb-8">
 							<h2 className="text-2xl font-semibold text-primary-heading">My Saved Resources</h2>
@@ -105,7 +94,7 @@ export default function ResourcesPage() {
 						</div>
 						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 							{resourcesToShow
-								.filter((resource) => savedResources.some((id) => id === resource.id))
+								.filter((resource) => savedResources.includes(resource.id))
 								.map((resource) => (
 									<ResourceCard
 										key={resource.id}
@@ -147,15 +136,20 @@ export default function ResourcesPage() {
 						</div>
 					</form>
 
-					{/* Resources Grid */}
-					{!resourcesLoading && (
+					{/* Search Results Section */}
+					{resourcesLoading && <Loading />}
+					{resourcesError && <Error message={resourcesError} />}
+					{hasSearched && !resourcesLoading && !resourcesError && resources.length === 0 && (
+						<EmptyState message="No resources found. Try a different search." />
+					)}
+					{resourcesToShow.length > 0 && !resourcesLoading && !resourcesError && (
 						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 							{resourcesToShow.map((resource) => (
 								<ResourceCard
 									key={resource.id}
 									{...resource}
-									isSaved={savedResources.some((id) => id === resource.id)}
-									onSaveToggle={() => handleSaveToggle(resource.sourceUrl)}
+									isSaved={savedResources.includes(resource.id)}
+									onSaveToggle={() => handleSaveToggle(resource.id)}
 								/>
 							))}
 						</div>

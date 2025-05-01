@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import TipCard from "../components/TipCard";
 import { FaSearch, FaArrowRight } from "react-icons/fa";
 import Header from "../components/Header";
@@ -8,13 +8,13 @@ import Footer from "../components/Footer";
 import { useAuthStore } from "../../stores/authStore";
 import { useHealthStore } from "../../stores/healthStore";
 import { useSavedStore } from "../../stores/savedStore";
-import { useTipsHistoryStore } from "../../stores/tipsHistoryStore";
 import { Loading } from "../components/Loading";
 import { Error } from "../components/Error";
 import { EmptyState } from "../components/EmptyState";
 
 export default function TipsPage() {
 	const [searchQuery, setSearchQuery] = useState("");
+	const [hasSearched, setHasSearched] = useState(false);
 
 	// Zustand stores
 	const { isAuthenticated } = useAuthStore();
@@ -26,9 +26,9 @@ export default function TipsPage() {
 		fetchSaved: fetchSavedTips,
 		loading: savedLoading,
 	} = useSavedStore();
-	const recentTips = useTipsHistoryStore((state) => state.getRecentTips(3));
 
 	useEffect(() => {
+		// Fetch saved tips only once on component mount
 		fetchSavedTips();
 	}, [fetchSavedTips]);
 
@@ -37,60 +37,51 @@ export default function TipsPage() {
 
 		if (!searchQuery.trim()) return;
 
+		setHasSearched(true);
 		await fetchTips(searchQuery, 10);
 	};
 
 	const handleSaveToggle = (tipId: string) => {
-		const isSaved = savedTips.some((id) => id === tipId);
-		if (isSaved) {
+		if (savedTips.includes(tipId)) {
 			removeTip(tipId);
 		} else {
 			addTip(tipId);
 		}
 	};
 
-	if (tipsLoading || savedLoading) return <Loading />;
-	if (tipsError) return <Error message={tipsError} />;
-	if (tips.length === 0) return <EmptyState message="No tips found. Try a different search." />;
+	// Memoize the tips data to prevent re-renders
+	const tipsToShow = useMemo(() => {
+		if (!tips.length) return [];
+		
+		return tips.map((tip) => ({
+			id: `medline-${encodeURIComponent(tip.url)}`,
+			title: tip.title,
+			content: tip.snippet,
+			category: "general",
+			source: "MedlinePlus.gov",
+			sourceUrl: tip.url,
+		}));
+	}, [tips]);
 
-	const tipsToShow = tips.map((tip) => ({
-		id: `medline-${encodeURIComponent(tip.url)}`,
-		title: tip.title,
-		content: tip.snippet,
-		category: "general",
-		source: "MedlinePlus.gov",
-		sourceUrl: tip.url,
-		isSaved: savedTips.some((id) => id === tip.url),
-	}));
+	// Handle loading state for initial load
+	if (savedLoading && !isAuthenticated) {
+		return (
+			<main className="min-h-screen w-full">
+				<Header />
+				<div className="max-w-[1200px] mx-auto px-6 md:px-12 lg:px-16 py-12">
+					<Loading />
+				</div>
+				<Footer />
+			</main>
+		);
+	}
 
 	return (
 		<main className="min-h-screen w-full">
 			<Header />
 			<div className="max-w-[1200px] mx-auto px-6 md:px-12 lg:px-16 py-12">
-				{/* Recently Viewed Tips */}
-				{recentTips.length > 0 && (
-					<section className="mb-16">
-						<div className="flex items-center justify-between mb-8">
-							<h2 className="text-2xl font-semibold text-primary-heading">Recently Viewed</h2>
-							<button className="text-primary-accent hover:text-primary-accent/80 transition-colors duration-200 flex items-center gap-2">
-								View All <FaArrowRight className="w-4 h-4" color="#3A8C96" />
-							</button>
-						</div>
-						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-							{recentTips.map((tip) => (
-								<TipCard
-									key={tip.id}
-									{...tip}
-									isSaved={savedTips.some((id) => id === tip.id)}
-									onSaveToggle={() => handleSaveToggle(tip.id)}
-								/>
-							))}
-						</div>
-					</section>
-				)}
-
 				{/* My Saved Tips Section */}
-				{isAuthenticated && (
+				{isAuthenticated && savedTips.length > 0 && tipsToShow.length > 0 && (
 					<section className="mb-16">
 						<div className="flex items-center justify-between mb-8">
 							<h2 className="text-2xl font-semibold text-primary-heading">My Saved Tips</h2>
@@ -100,18 +91,14 @@ export default function TipsPage() {
 						</div>
 						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 							{tipsToShow
-								.filter((tip) => savedTips.some((id) => id === tip.id))
+								.filter((tip) => savedTips.includes(tip.id))
 								.map((tip) => (
 									<TipCard
 										key={tip.id}
-										id={tip.id}
-										title={tip.title}
+										{...tip}
 										content={tip.content.replace(/<\/?[^>]+(>|$)/g, "")} // Strip HTML tags
-										category={tip.category}
-										source={tip.source || "health.gov"}
 										isSaved={true}
 										onSaveToggle={() => handleSaveToggle(tip.id)}
-										sourceUrl={tip.sourceUrl}
 									/>
 								))}
 						</div>
@@ -150,14 +137,20 @@ export default function TipsPage() {
 						</form>
 					</div>
 
-					{/* Tips Grid */}
-					{!tipsLoading && (
+					{/* Search Results Section */}
+					{tipsLoading && <Loading />}
+					{tipsError && <Error message={tipsError} />}
+					{hasSearched && !tipsLoading && !tipsError && tips.length === 0 && (
+						<EmptyState message="No tips found. Try a different search." />
+					)}
+					{tipsToShow.length > 0 && !tipsLoading && !tipsError && (
 						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 							{tipsToShow.map((tip) => (
 								<TipCard
 									key={tip.id}
 									{...tip}
-									isSaved={savedTips.some((id) => id === tip.sourceUrl)}
+									content={tip.content.replace(/<\/?[^>]+(>|$)/g, "")} // Strip HTML tags
+									isSaved={savedTips.includes(tip.id)}
 									onSaveToggle={() => handleSaveToggle(tip.id)}
 								/>
 							))}
