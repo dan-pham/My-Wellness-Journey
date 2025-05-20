@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { FaArrowRight } from "react-icons/fa";
 import toast from "react-hot-toast";
-
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import ResourceCard from "../components/ResourceCard";
@@ -21,6 +20,7 @@ import { Resource } from "@/types/resource";
 import { Tip } from "@/types/tip";
 import TipOfTheDay from "../components/TipOfTheDay";
 import RecommendedResources from "../components/RecommendedResources";
+import { Error } from "../components/Error";
 
 // Define types for our data
 interface Profile {
@@ -32,6 +32,16 @@ interface Profile {
 	savedResources?: Array<{ id: string; savedAt: string }>;
 	savedTips?: Array<{ id: string; savedAt: string }>;
 }
+
+interface ErrorResponse {
+	error: string;
+	errors?: { [key: string]: string[] };
+}
+
+type ApiError = {
+	message: string;
+	status?: number;
+};
 
 export default function DashboardPage() {
 	const router = useRouter();
@@ -109,15 +119,17 @@ export default function DashboardPage() {
 				const profileResponse = await fetchWithAuth("/api/user/profile");
 
 				if (!profileResponse.ok) {
-					const errorText = await profileResponse.text();
-					throw new Error("Failed to fetch profile");
+					const errorData: ErrorResponse = await profileResponse.json();
+					setError(errorData.error || "Failed to fetch profile");
+					return;
 				}
 
 				const profileData = await profileResponse.json();
 				setProfile(profileData.profile);
-			} catch (err) {
-				console.error("Error loading dashboard:", err);
-				setError("Failed to load dashboard data");
+			} catch (error) {
+				console.error("Error loading dashboard:", error);
+				const apiError = error as ApiError;
+				setError(apiError?.message || "Failed to load dashboard data");
 			} finally {
 				setIsLoading(false);
 			}
@@ -183,54 +195,34 @@ export default function DashboardPage() {
 
 	// Handle resetting the tip
 	const handleResetTip = () => {
-		showTip();
-		toast.success("Showing tip of the day");
-	};
-
-	// Handle complete reset of tip store
-	const handleCompleteReset = () => {
 		resetStore();
-		fetchTipOfDay();
-		toast.success("Tip of the day has been reset");
+		showTip();
+		toast.success("Tip reset successfully");
 	};
 
 	// Handle marking a tip as done
 	const handleMarkDone = (tipId: string) => {
-		// Store done tips in localStorage
-		const storedDoneTips = localStorage.getItem("doneTips");
-		const currentDoneTips = storedDoneTips ? JSON.parse(storedDoneTips) : [];
-
-		const isDone = currentDoneTips.includes(tipId);
-
-		// Toggle the done status
-		let updatedDoneTips;
-		if (isDone) {
-			updatedDoneTips = currentDoneTips.filter((id: string) => id !== tipId);
-		} else {
-			updatedDoneTips = [...currentDoneTips, tipId];
-		}
-
-		// Save to localStorage and update state
-		localStorage.setItem("doneTips", JSON.stringify(updatedDoneTips));
+		const updatedDoneTips = [...doneTips, tipId];
 		setDoneTips(updatedDoneTips);
-
-		// Show confirmation toast
-		toast.success(isDone ? "Tip unmarked as done" : "Tip marked as done", {
-			duration: 2000,
-			position: "bottom-center",
-		});
+		localStorage.setItem("doneTips", JSON.stringify(updatedDoneTips));
+		toast.success("Tip marked as done");
 	};
 
 	// Handle saving/unsaving a resource
-	const handleSaveResource = (resource: Resource) => {
-		if (!resource) return;
+	const handleSaveResource = async (resource: Resource) => {
+		const isCurrentlySaved = savedResources.includes(resource.id);
 
-		const resourceId = resource.id;
-
-		if (savedResources.includes(resourceId)) {
-			removeResource(resourceId);
-		} else {
-			addResource(resourceId, resource);
+		try {
+			if (isCurrentlySaved) {
+				removeResource(resource.id);
+				toast.success("Resource removed from saved");
+			} else {
+				addResource(resource.id, resource);
+				toast.success("Resource saved");
+			}
+		} catch (error) {
+			console.error("Error toggling resource save status:", error);
+			toast.error("Failed to update saved status");
 		}
 	};
 
@@ -267,8 +259,6 @@ export default function DashboardPage() {
 		return "Good evening";
 	};
 
-	// Force re-render when savedResources changes
-	// This ensures the UI stays in sync with the state
 	const savedResourcesKey = savedResources.join(",");
 
 	return (
@@ -276,66 +266,92 @@ export default function DashboardPage() {
 			<main className="min-h-screen w-full">
 				<Header />
 				<div className="max-w-[1200px] mx-auto px-6 md:px-12 lg:px-16 py-12">
-					{/* Greeting Section */}
-					<h1 className="text-3xl md:text-4xl font-bold text-primary-heading mb-4">
-						{getGreeting()}, {profile?.firstName || "User"}
-					</h1>
+					{isLoading ? (
+						<Loading overlay text="Loading your dashboard..." />
+					) : error ? (
+						<Error
+							title="Failed to load dashboard"
+							message={error}
+							variant="error"
+							retryable={true}
+							onRetry={() => window.location.reload()}
+						/>
+					) : (
+						<>
+							{/* Greeting Section */}
+							<h1 className="text-3xl md:text-4xl font-bold text-primary-heading mb-4">
+								{getGreeting()}, {profile?.firstName || "User"}
+							</h1>
 
-					{/* Daily Tip Card Section */}
-					<TipOfTheDay
-						key={`tip-of-day-${savedTipsKey}`}
-						tip={preparedTip}
-						isLoading={tipLoading}
-						dismissed={dismissed}
-						onDismiss={handleDismissTip}
-						onReset={handleResetTip}
-						onSaveToggle={handleSaveTip}
-						savedTips={savedTips}
-						allowDismiss={true}
-						onMarkDone={handleMarkDone}
-					/>
+							{/* Daily Tip Card Section */}
+							{tipLoading ? (
+								<Loading text="Loading your daily tip..." />
+							) : tipError ? (
+								<Error
+									title="Failed to load tip"
+									message={tipError}
+									variant="warning"
+									retryable={true}
+									onRetry={fetchTipOfDay}
+								/>
+							) : (
+								<TipOfTheDay
+									key={`tip-of-day-${savedTipsKey}`}
+									tip={preparedTip}
+									isLoading={tipLoading}
+									dismissed={dismissed}
+									onDismiss={handleDismissTip}
+									onReset={handleResetTip}
+									onSaveToggle={handleSaveTip}
+									savedTips={savedTips}
+									allowDismiss={true}
+									onMarkDone={handleMarkDone}
+								/>
+							)}
 
-					{/* Resources Based on Health Profile */}
-					<RecommendedResources />
+							{/* Resources Based on Health Profile */}
+							<RecommendedResources />
 
-					{/* Recently Viewed Resources */}
-					<section className="mb-16">
-						<div className="flex items-center justify-between mb-8">
-							<h2 className="text-2xl font-semibold text-primary-heading">
-								Recently Viewed Resources
-							</h2>
-							<Link
-								href="/resources"
-								className="text-primary-accent hover:text-primary-accent/80 transition-colors duration-200 flex items-center gap-2 whitespace-nowrap"
-							>
-								View All Resources <FaArrowRight className="w-4 h-4" />
-							</Link>
-						</div>
+							{/* Recently Viewed Resources */}
+							<section className="mb-16">
+								<div className="flex items-center justify-between mb-8">
+									<h2 className="text-2xl font-semibold text-primary-heading">
+										Recently Viewed Resources
+									</h2>
+									<Link
+										href="/resources"
+										className="text-primary-accent hover:text-primary-accent/80 transition-colors duration-200 flex items-center gap-2 whitespace-nowrap"
+									>
+										View All Resources <FaArrowRight className="w-4 h-4" />
+									</Link>
+								</div>
 
-						{recentlyViewedResources.length === 0 ? (
-							<EmptyState
-								title="No Recent Activity"
-								message="You haven't viewed any resources yet"
-								actionLabel="Explore Resources"
-								actionUrl="/resources"
-							/>
-						) : (
-							<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-								{recentlyViewedResources.slice(0, 3).map((resource) => (
-									<ResourceCard
-										key={resource.id}
-										id={resource.id}
-										title={resource.title}
-										description={resource.description}
-										imageUrl={resource.imageUrl}
-										sourceUrl={resource.sourceUrl}
-										isSaved={savedResources.includes(resource.id)}
-										onSaveToggle={() => handleSaveResource(resource)}
+								{recentlyViewedResources.length === 0 ? (
+									<EmptyState
+										title="No Recent Activity"
+										message="You haven't viewed any resources yet"
+										actionLabel="Explore Resources"
+										actionUrl="/resources"
 									/>
-								))}
-							</div>
-						)}
-					</section>
+								) : (
+									<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+										{recentlyViewedResources.slice(0, 3).map((resource) => (
+											<ResourceCard
+												key={resource.id}
+												id={resource.id}
+												title={resource.title}
+												description={resource.description}
+												imageUrl={resource.imageUrl}
+												sourceUrl={resource.sourceUrl}
+												isSaved={savedResources.includes(resource.id)}
+												onSaveToggle={() => handleSaveResource(resource)}
+											/>
+										))}
+									</div>
+								)}
+							</section>
+						</>
+					)}
 				</div>
 				<Footer />
 			</main>
