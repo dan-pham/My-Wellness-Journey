@@ -9,11 +9,24 @@ export async function POST(req: NextRequest) {
 			return authResult;
 		}
 
-		// Return a success response since logout is handled client-side
-		return NextResponse.json({
+		// Create response
+		const response = NextResponse.json({
 			success: true,
 			message: "Successfully logged out",
 		});
+
+		// Clear the auth cookie
+		response.cookies.set({
+			name: "auth_token",
+			value: "",
+			httpOnly: true,
+			secure: process.env.NODE_ENV === "production",
+			sameSite: "strict",
+			maxAge: 0, // Expire immediately
+			path: "/",
+		});
+
+		return response;
 	} catch (error) {
 		console.error("Logout error: ", error);
 		return NextResponse.json({ error: "Logout failed" }, { status: 500 });

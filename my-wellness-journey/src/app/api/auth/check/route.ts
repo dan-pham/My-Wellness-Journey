@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { authenticate } from "@/middleware/auth";
 import connectDB from "@/config/db";
 import User from "@/models/user";
+import mongoose from "mongoose";
 
 export async function GET(req: NextRequest) {
 	try {
@@ -16,7 +17,7 @@ export async function GET(req: NextRequest) {
 		// Connect to database
 		await connectDB();
 
-		// Find user by ID (just basic info)
+		// Find user by ID
 		const user = await User.findById(userId);
 
 		if (!user) {
@@ -34,5 +35,10 @@ export async function GET(req: NextRequest) {
 	} catch (error) {
 		console.error("Auth check error:", error);
 		return NextResponse.json({ error: "Authentication check failed" }, { status: 500 });
+	} finally {
+		// Close the database connection if mongoose has an active connection
+		if (mongoose.connection.readyState !== 0) {
+			await mongoose.disconnect();
+		}
 	}
 }

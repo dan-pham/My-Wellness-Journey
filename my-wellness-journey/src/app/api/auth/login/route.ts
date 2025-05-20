@@ -5,12 +5,8 @@ import User from "@/models/user";
 import { validateAndSanitizeInput, isRequired, isEmail } from "@/middleware/validation";
 import { authRateLimiter } from "@/middleware/rateLimit";
 import { withApiMiddleware } from "@/lib/apiHandler";
-
-// Get JWT secret from environment variable
-const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) {
-	throw new Error("JWT_SECRET is not defined in environment variables");
-}
+import mongoose from "mongoose";
+import { JWT_SECRET, JWT_EXPIRES_IN, createAuthCookie } from "@/config/auth";
 
 async function loginHandler(req: NextRequest) {
 	try {
@@ -30,7 +26,7 @@ async function loginHandler(req: NextRequest) {
 		// Connect to database
 		await connectDB();
 
-		// Find user by email and include password field (which is excluded by default)
+		// Find user by email and include password field
 		const user = await User.findOne({ email }).select("+password");
 
 		if (!user) {
@@ -44,7 +40,7 @@ async function loginHandler(req: NextRequest) {
 		}
 
 		// Generate JWT token
-		const token = jwt.sign({ id: user._id }, JWT_SECRET as string, { expiresIn: "7d" });
+		const token = jwt.sign({ id: user._id }, JWT_SECRET as string, { expiresIn: JWT_EXPIRES_IN });
 
 		// Return user data and token (exclude password)
 		const userData = {
@@ -61,23 +57,21 @@ async function loginHandler(req: NextRequest) {
 		});
 
 		// Set the token as an HTTP-only cookie
-		response.cookies.set({
-			name: "auth_token",
-			value: token,
-			httpOnly: true,
-			secure: process.env.NODE_ENV === "production", // Only send over HTTPS in production
-			sameSite: "strict",
-			maxAge: 7 * 24 * 60 * 60, // 7 days in seconds
-			path: "/",
-		});
+		response.cookies.set(createAuthCookie(token));
 
 		return response;
 	} catch (error) {
 		console.error("Login error:", error);
 		return NextResponse.json({ error: "Authentication failed" }, { status: 500 });
+	} finally {
+		// Close the database connection if mongoose has an active connection
+		if (mongoose.connection.readyState !== 0) {
+			await mongoose.disconnect();
+		}
 	}
 }
 
+// Export the handler with middleware
 export const POST = withApiMiddleware(loginHandler, {
 	rateLimiter: authRateLimiter,
 	enableCors: true,

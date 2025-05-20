@@ -11,6 +11,8 @@ import {
 import { passwordRateLimiter } from "@/middleware/rateLimit";
 import { withApiMiddleware } from "@/lib/apiHandler";
 import jwt from "jsonwebtoken";
+import mongoose from "mongoose";
+import { JWT_SECRET, JWT_EXPIRES_IN, createAuthCookie } from "@/config/auth";
 
 async function passwordHandler(req: NextRequest) {
 	try {
@@ -65,32 +67,27 @@ async function passwordHandler(req: NextRequest) {
 		user.password = newPassword;
 		await user.save();
 
+		// Refresh the auth token with a new expiration time
+		const token = jwt.sign({ id: user._id }, JWT_SECRET as string, { expiresIn: JWT_EXPIRES_IN });
+
 		// Create a response with secure cookie settings
 		const response = NextResponse.json({
 			success: true,
 			message: "Password updated successfully",
 		});
 
-		// Refresh the auth token with a new expiration time
-		const JWT_SECRET = process.env.JWT_SECRET as string;
-		if (JWT_SECRET) {
-			const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: "7d" });
-
-			response.cookies.set({
-				name: "auth_token",
-				value: token,
-				httpOnly: true,
-				secure: process.env.NODE_ENV === "production",
-				sameSite: "strict",
-				maxAge: 7 * 24 * 60 * 60, // 7 days in seconds
-				path: "/",
-			});
-		}
+		// Set new auth token cookie
+		response.cookies.set(createAuthCookie(token));
 
 		return response;
 	} catch (error) {
 		console.error("Change password error:", error);
 		return NextResponse.json({ error: "Failed to change password" }, { status: 500 });
+	} finally {
+		// Close the database connection if mongoose has an active connection
+		if (mongoose.connection.readyState !== 0) {
+			await mongoose.disconnect();
+		}
 	}
 }
 
