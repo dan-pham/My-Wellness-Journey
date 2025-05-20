@@ -16,7 +16,27 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Environment Variables Setup
+
+This project requires several environment variables to be set up before running. Follow these steps:
+
+1. Copy the `.env.example` file to create a new `.env` file:
+
+   ```bash
+   cp .env.example .env
+   ```
+
+2. Fill in the `.env` file with your actual values:
+
+   - `MONGODB_URI`: Your MongoDB connection string
+   - `JWT_SECRET`: A secure random string for JWT token generation
+   - `NEXTAUTH_URL`: Your application URL (use http://localhost:3000 for local development)
+   - `NEXTAUTH_SECRET`: A secure random string for NextAuth
+   - `ENCRYPTION_KEY`: A 32-character encryption key for secure data storage
+   - `OPENAI_API_KEY`: Your OpenAI API key
+   - `REDIS_URL`: Your Redis connection string from Upstash
+
+3. Make sure to never commit your `.env` file to version control
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
