@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
-import connectDB from "@/config/db";
 import User from "@/models/user";
 import { validateAndSanitizeInput, isRequired, isEmail } from "@/middleware/validation";
 import { authRateLimiter } from "@/middleware/rateLimit";
 import { withApiMiddleware } from "@/lib/apiHandler";
-import mongoose from "mongoose";
 import { JWT_SECRET, JWT_EXPIRES_IN, createAuthCookie } from "@/config/auth";
+import { ensureConnection, closeConnection } from "@/lib/db/connection";
 
 async function loginHandler(req: NextRequest) {
 	try {
@@ -24,7 +23,7 @@ async function loginHandler(req: NextRequest) {
 		const { email, password } = validationResult.validated;
 
 		// Connect to database
-		await connectDB();
+		await ensureConnection();
 
 		// Find user by email and include password field
 		const user = await User.findOne({ email }).select("+password");
@@ -65,9 +64,7 @@ async function loginHandler(req: NextRequest) {
 		return NextResponse.json({ error: "Authentication failed" }, { status: 500 });
 	} finally {
 		// Close the database connection if mongoose has an active connection
-		if (mongoose.connection.readyState !== 0) {
-			await mongoose.disconnect();
-		}
+		await closeConnection();
 	}
 }
 

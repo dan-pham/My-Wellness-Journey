@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import User from "@/models/user";
 import Profile from "@/models/profile";
-import connectDB from "@/config/db";
 import {
 	validateAndSanitizeInput,
 	isRequired,
@@ -10,7 +9,7 @@ import {
 } from "@/middleware/validation";
 import { authRateLimiter } from "@/middleware/rateLimit";
 import { withApiMiddleware } from "@/lib/apiHandler";
-import mongoose from "mongoose";
+import { ensureConnection, closeConnection } from "@/lib/db/connection";
 
 // Validation schema for registration
 const VALIDATION_SCHEMA = {
@@ -32,7 +31,7 @@ async function registerHandler(req: NextRequest) {
 		const { firstName, lastName, email, password } = validationResult.validated;
 
 		// Connect to database
-		await connectDB();
+		await ensureConnection();
 
 		// Check if user already exists
 		const existingUser = await User.findOne({ email });
@@ -86,9 +85,7 @@ async function registerHandler(req: NextRequest) {
 		return NextResponse.json({ error: "Failed to create user" }, { status: 500 });
 	} finally {
 		// Close the database connection if mongoose has an active connection
-		if (mongoose.connection.readyState !== 0) {
-			await mongoose.disconnect();
-		}
+		await closeConnection();
 	}
 }
 

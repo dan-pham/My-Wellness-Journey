@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import connectDB from "@/config/db";
 import User from "@/models/user";
 import { authenticate } from "@/middleware/auth";
 import {
@@ -11,8 +10,8 @@ import {
 import { passwordRateLimiter } from "@/middleware/rateLimit";
 import { withApiMiddleware } from "@/lib/apiHandler";
 import jwt from "jsonwebtoken";
-import mongoose from "mongoose";
 import { JWT_SECRET, JWT_EXPIRES_IN, createAuthCookie } from "@/config/auth";
+import { ensureConnection, closeConnection } from "@/lib/db/connection";
 
 async function passwordHandler(req: NextRequest) {
 	try {
@@ -38,7 +37,7 @@ async function passwordHandler(req: NextRequest) {
 		const { currentPassword, newPassword } = validationResult.validated;
 
 		// Connect to database
-		await connectDB();
+		await ensureConnection();
 
 		// Find user by ID and include password field
 		const user = await User.findById(userId).select("+password");
@@ -85,9 +84,7 @@ async function passwordHandler(req: NextRequest) {
 		return NextResponse.json({ error: "Failed to change password" }, { status: 500 });
 	} finally {
 		// Close the database connection if mongoose has an active connection
-		if (mongoose.connection.readyState !== 0) {
-			await mongoose.disconnect();
-		}
+		await closeConnection();
 	}
 }
 
