@@ -1,34 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
+import { MyHealthFinderService } from "@/lib/api/myhealthfinderService";
 
 export async function GET(req: NextRequest) {
 	try {
 		const { searchParams } = new URL(req.url);
-		const keyword = searchParams.get("keyword") || "general";
-		const lang = "en";
-		const limit = searchParams.get("limit") || "10";
+		const keyword = searchParams.get("keyword") || undefined;
+		const limit = searchParams.get("limit") || undefined;
 
 		// Health.gov API for evidence-based health tips
-		const baseUrl = "https://health.gov/myhealthfinder/api/v3/topicsearch.json";
-
-		const params = new URLSearchParams({
-			keyword,
-			lang,
-			limit,
-		});
-
-		// Make server-side request to the external API
-		const response = await fetch(`${baseUrl}?${params.toString()}`, {
-			headers: {
-				Accept: "application/json",
-				// You may need to add an API key or other headers if required
-			},
-		});
-
-		if (!response.ok) {
-			throw new Error(`Health.gov API error: ${response.status}`);
-		}
-
-		const data = await response.json();
+		const data = await MyHealthFinderService.searchTopics(keyword, limit);
 
 		// Return the data to the client
 		return NextResponse.json(data);
