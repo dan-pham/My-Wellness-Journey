@@ -120,7 +120,6 @@ export default function RecommendedResources() {
 
 					// Check if we have valid resources
 					if (!data.Result || !data.Result.Resources || !data.Result.Resources.Resource) {
-						console.warn(`No resources found for keyword: ${keyword}`);
 						return null;
 					}
 
@@ -164,7 +163,6 @@ export default function RecommendedResources() {
 			// If no resources were found using the keywords, try a general search
 			if (validResources.length === 0) {
 				try {
-					console.log("No specific resources found, trying general health search");
 					const generalResponse = await fetch(`/api/myhealthfinder?keyword=general&limit=3`);
 
 					if (generalResponse.ok) {

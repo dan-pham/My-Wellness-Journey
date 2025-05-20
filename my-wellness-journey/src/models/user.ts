@@ -18,7 +18,10 @@ const userSchema = new Schema<IUser>(
 			trim: true,
 			unique: true,
 			lowercase: true,
-			match: [/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/, "Please enter a valid email address"],
+			match: [
+				/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/,
+				"Please enter a valid email address",
+			],
 		},
 		password: {
 			type: String,
@@ -31,9 +34,6 @@ const userSchema = new Schema<IUser>(
 		timestamps: true,
 	}
 );
-
-// Ensure email index is created
-userSchema.index({ email: 1 }, { unique: true });
 
 // Hash password before saving
 userSchema.pre("save", async function (next) {

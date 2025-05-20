@@ -59,6 +59,19 @@ jest.mock("@/app/components/EmptyState", () => ({
 }));
 
 describe("Dashboard Page", () => {
+	// Store the original console.error
+	const originalConsoleError = console.error;
+	
+	beforeAll(() => {
+		// Suppress console.error before all tests
+		console.error = jest.fn();
+	});
+	
+	afterAll(() => {
+		// Restore console.error after all tests
+		console.error = originalConsoleError;
+	});
+
 	// Mock data
 	const mockProfile = {
 		firstName: "John",
@@ -146,10 +159,6 @@ describe("Dashboard Page", () => {
 	});
 
 	it("handles error state when profile fetch fails", async () => {
-		// Temporarily suppress console.error for this test
-		const originalConsoleError = console.error;
-		console.error = jest.fn();
-
 		global.fetch = jest.fn().mockImplementation(() =>
 			Promise.resolve({
 				ok: false,
@@ -166,8 +175,5 @@ describe("Dashboard Page", () => {
 		await waitFor(() => {
 			expect(screen.getByText("Something went wrong")).toBeInTheDocument();
 		});
-
-		// Restore the original implementations
-		console.error = originalConsoleError;
 	});
 });

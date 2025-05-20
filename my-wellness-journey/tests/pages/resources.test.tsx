@@ -73,6 +73,19 @@ Object.defineProperty(window, "location", {
 });
 
 describe("Resources Page", () => {
+	// Store the original console.error
+	const originalConsoleError = console.error;
+	
+	beforeAll(() => {
+		// Suppress console.error before all tests
+		console.error = jest.fn();
+	});
+	
+	afterAll(() => {
+		// Restore console.error after all tests
+		console.error = originalConsoleError;
+	});
+
 	const mockPush = jest.fn();
 	const mockFetchResources = jest.fn();
 	const mockFetchSavedResources = jest.fn();
