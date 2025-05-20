@@ -16,6 +16,11 @@ describe("User Model", () => {
 	// Connect to in-memory database before tests
 	// This is handled by the global setup in setup.ts
 
+	beforeAll(async () => {
+		// Ensure indexes are created before running tests
+		await User.init();
+	});
+
 	// Clear database after each test
 	// This is also handled by the global setup in setup.ts
 
