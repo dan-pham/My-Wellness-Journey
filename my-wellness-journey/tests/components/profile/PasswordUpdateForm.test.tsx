@@ -37,7 +37,8 @@ describe("PasswordUpdateForm", () => {
 		const newPasswordInput = screen.getByLabelText("New Password");
 		const confirmPasswordInput = screen.getByLabelText("Confirm Password");
 
-		const toggleButtons = screen.getAllByRole("button", { name: "" });
+		// Get toggle buttons by their aria-labels
+		const toggleButtons = screen.getAllByRole("button", { name: /show password|hide password/i });
 
 		// All passwords should be hidden by default
 		expect(currentPasswordInput).toHaveAttribute("type", "password");
@@ -49,18 +50,28 @@ describe("PasswordUpdateForm", () => {
 			await user.click(toggleButtons[0]);
 		});
 		expect(currentPasswordInput).toHaveAttribute("type", "text");
+		expect(toggleButtons[0]).toHaveAccessibleName("Hide password");
 
 		// Toggle new password visibility
 		await act(async () => {
 			await user.click(toggleButtons[1]);
 		});
 		expect(newPasswordInput).toHaveAttribute("type", "text");
+		expect(toggleButtons[1]).toHaveAccessibleName("Hide password");
 
 		// Toggle confirm password visibility
 		await act(async () => {
 			await user.click(toggleButtons[2]);
 		});
 		expect(confirmPasswordInput).toHaveAttribute("type", "text");
+		expect(toggleButtons[2]).toHaveAccessibleName("Hide password");
+
+		// Toggle them back
+		await act(async () => {
+			await user.click(toggleButtons[0]);
+		});
+		expect(currentPasswordInput).toHaveAttribute("type", "password");
+		expect(toggleButtons[0]).toHaveAccessibleName("Show password");
 	});
 
 	it("calls onUpdatePassword with form data when submitted", async () => {
