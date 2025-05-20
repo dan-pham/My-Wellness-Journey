@@ -7,8 +7,110 @@ const openai = new OpenAI({
 	apiKey: process.env.OPENAI_API_KEY,
 });
 
+interface GPTRequest {
+	prompt?: string;
+	query?: string;
+	userProfile?: any;
+	medlineContent?: string;
+}
+
+interface ActionableTask {
+	id: string;
+	task: string;
+	reason: string;
+	sourceUrl: string;
+}
+
+interface GPTResponse {
+	actionableTasks?: ActionableTask[];
+	reply?: string;
+}
+
+// Helper function to fetch MedlinePlus content
+async function fetchMedlinePlusContent(query: string): Promise<string | null> {
+	try {
+		const medlineData = await searchMedlinePlus(query, 1);
+		return medlineData.results.length > 0 ? medlineData.results[0].snippet : null;
+	} catch (error) {
+		console.error("Error fetching MedlinePlus content:", error);
+		return null;
+	}
+}
+
+// Helper function to generate system and user prompts
+function generatePrompts(
+	query: string | undefined,
+	userProfile: any | undefined,
+	contentFromMedline: string | undefined,
+	originalPrompt: string | undefined
+): { systemPrompt: string; userPrompt: string } {
+	// Generate system prompt
+	let systemPrompt =
+		"You are a helpful, accurate health assistant. Provide brief, actionable health advice.";
+	if (userProfile) {
+		systemPrompt +=
+			" Personalize your advice based on the user profile provided. Be sensitive to their health conditions.";
+	}
+
+	// Generate user prompt
+	let userPrompt = "";
+	if (!contentFromMedline) {
+		userPrompt = originalPrompt || "";
+	} else {
+		userPrompt = `
+            Convert the following content about ${query} into a list of 3 to 5 simple, actionable health tasks
+            that a person can do today. Each task should be specific, practical, and easily completed in a day.
+            For each task, provide:
+            1. A clear, action-oriented task description
+            2. A patient-friendly medical explanation of why this task is beneficial
+
+            Format the output as a JSON object with the following structure:
+            {
+                "actionableTasks": [
+                    {
+                        "id": "task1",
+                        "task": "Clear action-oriented task description",
+                        "reason": "Patient-friendly medical explanation of the task's benefits",
+                        "sourceUrl": ""
+                    },
+                    ...more tasks
+                ]
+            }
+            
+            Content to analyze: ${contentFromMedline}
+        `;
+
+		if (userProfile) {
+			userPrompt += `\n\nUser profile for personalization: ${JSON.stringify(userProfile)}`;
+		}
+	}
+
+	return { systemPrompt, userPrompt };
+}
+
+// Helper function to handle OpenAI chat completion
+async function getChatCompletion(
+	systemPrompt: string,
+	userPrompt: string,
+	shouldFormatAsJson: boolean
+): Promise<string> {
+	const chatResponse = await openai.chat.completions.create({
+		model: "gpt-4o-mini",
+		messages: [
+			{ role: "system", content: systemPrompt },
+			{ role: "user", content: userPrompt },
+		],
+		temperature: 0.7,
+		response_format: shouldFormatAsJson ? { type: "json_object" } : undefined,
+	});
+
+	return chatResponse.choices[0].message.content || "";
+}
+
+// Main handler function
 export async function POST(req: NextRequest) {
 	try {
+		// Parse request
 		const { prompt, query, userProfile, medlineContent } = await req.json();
 
 		// Validate inputs
@@ -22,88 +124,30 @@ export async function POST(req: NextRequest) {
 		// Try to get cached response
 		const cachedResponse = await redis.get(cacheKey);
 		if (cachedResponse) {
-			console.log("Cache hit for:", cacheKey);
 			return NextResponse.json(JSON.parse(cachedResponse));
 		}
 
-		console.log("Cache miss for:", cacheKey);
+		// Fetch MedlinePlus content if needed
+		const contentFromMedline =
+			medlineContent || (query ? await fetchMedlinePlusContent(query) : null);
 
-		// Choose the appropriate prompt based on the input
-		let promptToUse = prompt;
+		// Generate prompts
+		const { systemPrompt, userPrompt } = generatePrompts(
+			query,
+			userProfile,
+			contentFromMedline,
+			prompt
+		);
 
-		// If we have a query, we'll fetch MedlinePlus content if not provided
-		let contentFromMedline = medlineContent;
-		if (query && !contentFromMedline) {
-			try {
-				const medlineData = await searchMedlinePlus(query, 1);
-				if (medlineData.results.length > 0) {
-					contentFromMedline = medlineData.results[0].snippet;
-				}
-			} catch (error) {
-				console.error("Error fetching MedlinePlus content:", error);
-			}
-		}
+		// Get chat completion
+		const content = await getChatCompletion(systemPrompt, userPrompt, !!contentFromMedline);
 
-		// Generate system prompt based on what we have
-		let systemPrompt =
-			"You are a helpful, accurate health assistant. Provide brief, actionable health advice.";
+		// Parse and format response
+		let response: GPTResponse;
 
-		if (userProfile) {
-			systemPrompt +=
-				" Personalize your advice based on the user profile provided. Be sensitive to their health conditions.";
-		}
-
-		let userPrompt = "";
-
-		// If we're generating tips from MedlinePlus content
-		if (contentFromMedline) {
-			userPrompt = `
-				Convert the following content about ${query} into a list of 3 to 5 simple, actionable health tasks
-				that a person can do today. Each task should be specific, practical, and easily completed in a day.
-				For each task, provide:
-				1. A clear, action-oriented task description
-				2. A patient-friendly medical explanation of why this task is beneficial
-
-				Format the output as a JSON object with the following structure:
-				{
-					"actionableTasks": [
-						{
-							"id": "task1",
-							"task": "Clear action-oriented task description",
-							"reason": "Patient-friendly medical explanation of the task's benefits",
-							"sourceUrl": ""
-						},
-						...more tasks
-					]
-				}
-				
-				Content to analyze: ${contentFromMedline}
-			`;
-
-			// If we have user profile, add it to personalize the response
-			if (userProfile) {
-				userPrompt += `\n\nUser profile for personalization: ${JSON.stringify(userProfile)}`;
-			}
+		if (!contentFromMedline) {
+			response = { reply: content };
 		} else {
-			// Use the provided prompt directly
-			userPrompt = promptToUse;
-		}
-
-		const chatResponse = await openai.chat.completions.create({
-			model: "gpt-4o-mini",
-			messages: [
-				{ role: "system", content: systemPrompt },
-				{ role: "user", content: userPrompt },
-			],
-			temperature: 0.7,
-			response_format: contentFromMedline ? { type: "json_object" } : undefined,
-		});
-
-		// Parse the response if it's JSON
-		const content = chatResponse.choices[0].message.content;
-		let response;
-
-		if (contentFromMedline) {
 			try {
 				response = JSON.parse(content || "{}");
 			} catch (error) {
@@ -116,8 +160,6 @@ export async function POST(req: NextRequest) {
 					{ status: 500 }
 				);
 			}
-		} else {
-			response = { reply: content };
 		}
 
 		// Cache the response
