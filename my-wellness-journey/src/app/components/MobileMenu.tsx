@@ -1,6 +1,7 @@
-import { FaTimes } from "react-icons/fa";
+import { FaTimes, FaSignOutAlt } from "react-icons/fa";
 import NavItem from "./NavItem";
 import Button from "./Button";
+import Link from "next/link";
 
 interface MobileMenuProps {
 	isOpen: boolean;
@@ -43,15 +44,26 @@ const MobileMenu = ({
 							href={item.href}
 							isSelected={isSelected(item.href)}
 							className="text-2xl"
+							onClick={onClose}
 						/>
 					))}
 				</nav>
 				<div className="mt-auto">
-					<Button
-						text={isSignedIn ? "Sign out" : "Get started"}
-						onClick={onAuthClick}
-						className="w-full"
-					/>
+					{isSignedIn ? (
+						<button
+							onClick={onAuthClick}
+							className="flex items-center gap-2 w-full px-4 py-3 text-red-600 border border-red-200 rounded-lg bg-red-50 hover:bg-red-100 transition-colors duration-200"
+						>
+							<FaSignOutAlt className="w-5 h-5" />
+							<span className="font-medium">Sign Out</span>
+						</button>
+					) : (
+						<Button
+							text="Get started"
+							onClick={onAuthClick}
+							className="w-full"
+						/>
+					)}
 				</div>
 			</div>
 		</div>

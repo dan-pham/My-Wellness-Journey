@@ -3,7 +3,7 @@ import React from "react";
 interface ButtonProps {
 	text: string;
 	icon?: React.ReactNode;
-	onClick?: () => void;
+	onClick?: ((e?: React.MouseEvent<HTMLButtonElement>) => void) | (() => void);
 	className?: string;
 	type?: "button" | "submit" | "reset";
 	disabled?: boolean;

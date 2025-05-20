@@ -1,34 +1,12 @@
 import React from "react";
 import ResourceCard from "../components/ResourceCard";
+import { MyHealthFinder } from "../../lib/api/myhealthfinder";
 
-const ResourcesSection = () => {
-	const resources = [
-		{
-			id: 1,
-			category: "Category",
-			imageUrl:
-				"https://images.unsplash.com/photo-1537368910025-700350fe46c7?q=80&w=1740&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-			title: "Title",
-			description: "Description description description description...",
-		},
-		{
-			id: 2,
-			category: "Category",
-			imageUrl:
-				"https://images.unsplash.com/photo-1519682577862-22b62b24e493?q=80&w=1740&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-			title: "Title",
-			description: "Description description description description...",
-		},
-		{
-			id: 3,
-			category: "Category",
-			imageUrl:
-				"https://images.unsplash.com/photo-1477332552946-cfb384aeaf1c?q=80&w=1740&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-			title: "Title",
-			description: "Description description description description...",
-		},
-	];
+interface ResourcesSectionProps {
+	resources: MyHealthFinder[];
+}
 
+const ResourcesSection = ({ resources }: ResourcesSectionProps) => {
 	return (
 		<section id="resources" className="w-full bg-white mb-16">
 			<div className="mx-auto max-w-[1200px] px-4 md:px-8 py-16">
@@ -48,10 +26,11 @@ const ResourcesSection = () => {
 							className="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow duration-300"
 						>
 							<ResourceCard
-								category={res.category}
-								imageUrl={res.imageUrl}
+								id={res.id}
+								imageUrl={res.imageUrl || ""}
 								title={res.title}
-								description={res.description}
+								description={res.content.slice(0, 120) + (res.content.length > 120 ? "..." : "")}
+								sourceUrl={res.sourceUrl || "#"}
 							/>
 						</div>
 					))}

@@ -45,7 +45,6 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
 			// Finally, make sure the URL is valid
 			medlineUrl = new URL(urlPart).toString();
-			console.log("Reconstructed URL:", medlineUrl);
 		} catch (urlError) {
 			console.error("Error reconstructing URL:", urlError);
 			return NextResponse.json(
@@ -102,23 +101,33 @@ function extractTitle(html: string): string {
  * Extract the main content from the HTML
  */
 function extractContent(html: string): string {
-	// This is a simple extraction that looks for the main content area
-	// You may need to adjust this based on the actual MedlinePlus page structure
+	// Look for the main content area
+	// Try to find the topic-summary div first
+	let mainContentMatch = html.match(/<div\s+id="topic-summary"[^>]*>([\s\S]*?)<\/div>/i);
 
-	// Try to find the main content area
-	const mainContentMatch = html.match(/<div\s+id="topic-summary"[^>]*>([\s\S]*?)<\/div>/i);
-	if (mainContentMatch && mainContentMatch[1]) {
-		// Clean the HTML to get just the text
-		return cleanHtml(mainContentMatch[1]);
+	if (!mainContentMatch) {
+		// Try to find main content area with a different pattern
+		mainContentMatch = html.match(/<main[^>]*>([\s\S]*?)<\/main>/i);
 	}
 
-	// Fallback to looking for the first paragraph
+	if (mainContentMatch && mainContentMatch[1]) {
+		// Sanitize HTML to keep important formatting but remove scripts and iframes
+		return sanitizeHtml(mainContentMatch[1]);
+	}
+
+	// Fallback to looking for article content
+	const articleMatch = html.match(/<article[^>]*>([\s\S]*?)<\/article>/i);
+	if (articleMatch && articleMatch[1]) {
+		return sanitizeHtml(articleMatch[1]);
+	}
+
+	// Second fallback to looking for the first substantial paragraph
 	const paragraphMatch = html.match(/<p>([\s\S]*?)<\/p>/i);
 	if (paragraphMatch && paragraphMatch[1]) {
-		return cleanHtml(paragraphMatch[1]);
+		return `<p>${sanitizeHtml(paragraphMatch[1])}</p>`;
 	}
 
-	return "Visit the source page for more information.";
+	return "<p>Visit the source page for more information.</p>";
 }
 
 /**
@@ -140,10 +149,57 @@ function extractJsonLd(html: string): any {
 
 /**
  * Clean HTML content by removing tags and normalizing whitespace
+ * We'll keep this for generating plain text for previews
  */
 function cleanHtml(html: string): string {
 	return html
 		.replace(/<\/?[^>]+(>|$)/g, " ") // Remove HTML tags
 		.replace(/\s+/g, " ") // Normalize whitespace
 		.trim(); // Trim leading/trailing whitespace
+}
+
+/**
+ * Sanitize HTML to keep formatting but remove potentially harmful elements
+ */
+function sanitizeHtml(html: string): string {
+	// First, ensure lists are properly formatted
+	let processedHtml = html
+		// Fix common list structure issues
+		.replace(/<ul\s*>\s*<li/g, "<ul>\n<li")
+		.replace(/<\/li>\s*<li/g, "</li>\n<li")
+		.replace(/<\/li>\s*<\/ul/g, "</li>\n</ul")
+		// Same for ordered lists
+		.replace(/<ol\s*>\s*<li/g, "<ol>\n<li")
+		.replace(/<\/li>\s*<\/ol/g, "</li>\n</ol")
+		// Ensure paragraphs have proper spacing
+		.replace(/<\/p>\s*<p>/g, "</p>\n<p>");
+
+	// Now clean the HTML of unwanted elements
+	processedHtml = processedHtml
+		// Remove scripts, iframes, and other potentially harmful tags
+		.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
+		.replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, "")
+		.replace(/<object\b[^<]*(?:(?!<\/object>)<[^<]*)*<\/object>/gi, "")
+		.replace(/<embed\b[^<]*(?:(?!<\/embed>)<[^<]*)*<\/embed>/gi, "")
+		// Remove on* attributes (e.g., onclick, onload)
+		.replace(/\s+on\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]*)/gi, "")
+		// Fix any malformed HTML
+		.replace(/(<img[^>]+)(?!\/>|>)([^<]*)/gi, "$1 />$2")
+		// Remove specific elements by class or ID
+		.replace(/<div\s+class="mhp-social-wrapper"[^>]*>[\s\S]*?<\/div>/gi, "")
+		.replace(/<div\s+class="[^"]*advertisement[^"]*"[^>]*>[\s\S]*?<\/div>/gi, "")
+		// Add explicit styles for lists and paragraphs for consistent rendering
+		.replace(/<ul/g, '<ul style="list-style-type: disc; margin: 1em 0; padding-left: 2em;"')
+		.replace(/<ol/g, '<ol style="list-style-type: decimal; margin: 1em 0; padding-left: 2em;"')
+		.replace(/<li/g, '<li style="display: list-item; margin: 0.5em 0;"')
+		.replace(/<p/g, '<p style="margin: 1em 0; line-height: 1.6;"')
+		// Preserve whitespace in pre tags
+		.replace(/<pre[^>]*>([\s\S]*?)<\/pre>/gi, function (match, content) {
+			return '<pre style="white-space: pre-wrap; word-wrap: break-word;">' + content + "</pre>";
+		})
+		// Normalize whitespace in attributes (but be careful not to remove whitespace in content)
+		.replace(/\s{2,}/g, " ")
+		.trim();
+
+	return processedHtml;
 }

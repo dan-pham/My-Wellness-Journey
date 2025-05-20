@@ -1,37 +1,30 @@
-import mongoose, { Schema } from "mongoose";
+import mongoose, { Document, Schema } from "mongoose";
 import bcrypt from "bcryptjs";
 
-const userSchema = new Schema(
+// Define the User interface
+export interface IUser extends Document {
+	email: string;
+	password: string;
+	comparePassword: (password: string) => Promise<boolean>;
+	createdAt: Date;
+	updatedAt: Date;
+}
+
+const userSchema = new Schema<IUser>(
 	{
-		firstName: {
-			type: String,
-			required: true,
-			trim: true,
-		},
-		lastName: {
-			type: String,
-			required: true,
-			trim: true,
-		},
 		email: {
 			type: String,
-			required: true,
+			required: [true, "Email is required"],
 			trim: true,
 			unique: true,
 			lowercase: true,
+			match: [/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/, "Please enter a valid email address"],
 		},
 		password: {
 			type: String,
-			required: true,
+			required: [true, "Password is required"],
+			minlength: [6, "Password must be at least 6 characters"],
 			select: false, // Don't include in queries by default
-		},
-		createdAt: {
-			type: Date,
-			default: Date.now,
-		},
-		updatedAt: {
-			type: Date,
-			default: Date.now,
 		},
 	},
 	{
@@ -43,14 +36,23 @@ const userSchema = new Schema(
 userSchema.pre("save", async function (next) {
 	if (!this.isModified("password")) return next();
 
-	const saltRounds = 10;
-	this.password = await bcrypt.hash(this.password, saltRounds);
-	next();
+	try {
+		const salt = await bcrypt.genSalt(10);
+		this.password = await bcrypt.hash(this.password, salt);
+		next();
+	} catch (error: any) {
+		next(error);
+	}
 });
 
-// Compare password
-userSchema.methods.comparePassword = async function (candidatePassword: string): Promise<boolean> {
-	return bcrypt.compare(candidatePassword, this.password);
+// Method to compare passwords
+userSchema.methods.comparePassword = async function (password: string): Promise<boolean> {
+	try {
+		return await bcrypt.compare(password, this.password);
+	} catch (error) {
+		return false;
+	}
 };
 
-export default mongoose.models.User || mongoose.model("User", userSchema);
+const User = mongoose.models.User || mongoose.model<IUser>("User", userSchema);
+export default User;

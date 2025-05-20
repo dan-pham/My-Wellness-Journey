@@ -5,7 +5,6 @@ export interface MedlinePlusSearchResult {
 	title: string;
 	url: string;
 	snippet: string;
-	categories: string[];
 }
 
 export interface MedlinePlusSearchResponse {
@@ -85,7 +84,6 @@ export async function searchMedlinePlus(
 			const url = doc._attributes.url;
 			let title = "";
 			let snippet = "";
-			const categories: string[] = [];
 
 			// The content is an array of items with different name attributes
 			if (doc.content) {
@@ -102,8 +100,6 @@ export async function searchMedlinePlus(
 						title = stripHtmlTags(text);
 					} else if (name === "snippet") {
 						snippet = stripHtmlTags(text);
-					} else if (name === "groupName") {
-						categories.push(stripHtmlTags(text));
 					}
 				}
 			}
@@ -113,7 +109,6 @@ export async function searchMedlinePlus(
 				title,
 				url,
 				snippet,
-				categories: categories,
 			});
 		}
 

@@ -3,10 +3,16 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
-import { FaArrowLeft, FaBookmark, FaRegBookmark, FaShare } from "react-icons/fa";
+import { FaArrowLeft, FaBookmark, FaRegBookmark } from "react-icons/fa";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { fetchHealthDataById } from "../../../lib/api/myhealthfinder";
+import { useResourceHistoryStore } from "../../../stores/resourceHistoryStore";
+import { useSavedStore } from "../../../stores/savedStore";
+import toast from "react-hot-toast";
+import { Resource } from "@/types/resource";
+import { processHtmlForDetail, stripHtmlForPreview } from "@/utils/contentUtils";
+import { useAuthStore } from "@/stores/authStore";
 
 export default function ResourceDetailPage() {
 	const router = useRouter();
@@ -16,7 +22,16 @@ export default function ResourceDetailPage() {
 	const [resource, setResource] = useState<any>(null);
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
-	const [isSaved, setIsSaved] = useState(false);
+
+	// Use the saved resources store
+	const { savedResources, addResource, removeResource } = useSavedStore();
+	const isSaved = savedResources.includes(id);
+
+	// Use auth store
+	const { isAuthenticated } = useAuthStore();
+
+	// Use the resource history store
+	const { addToHistory } = useResourceHistoryStore();
 
 	useEffect(() => {
 		const loadResourceDetail = async () => {
@@ -28,17 +43,27 @@ export default function ResourceDetailPage() {
 				const resource = await fetchHealthDataById(id);
 
 				if (resource) {
-					setResource({
+					const resourceData = {
 						id: resource.id,
 						title: resource.title,
 						content: resource.content,
 						imageUrl:
 							resource.imageUrl || "https://images.unsplash.com/photo-1505751172876-fa1923c5c528",
-						category: resource.category,
 						source: resource.source || "health.gov",
 						url: resource.sourceUrl,
 						fullContent: resource.content,
 						relatedTopics: [],
+					};
+
+					setResource(resourceData);
+
+					// Add to view history when resource is loaded
+					addToHistory({
+						id: resourceData.id,
+						title: resourceData.title,
+						description: resourceData.content,
+						imageUrl: resourceData.imageUrl,
+						sourceUrl: resourceData.url,
 					});
 				} else {
 					throw new Error("Resource not found");
@@ -54,35 +79,59 @@ export default function ResourceDetailPage() {
 		if (id) {
 			loadResourceDetail();
 		}
-	}, [id]);
+	}, [id, addToHistory]);
 
 	const handleSaveToggle = () => {
-		setIsSaved(!isSaved);
-	};
+		if (!isAuthenticated) {
+			// Show error toast
+			toast.error("Please log in to save resources", {
+				id: "login-required",
+				duration: 3000,
+				icon: "🔒",
+			});
 
-	const handleShare = () => {
-		if (navigator.share) {
-			navigator
-				.share({
-					title: resource?.title,
-					text: `Check out this health resource: ${resource?.title}`,
-					url: window.location.href,
-				})
-				.catch((error) => console.log("Error sharing:", error));
-		} else {
-			// Fallback - copy URL to clipboard
-			navigator.clipboard.writeText(window.location.href);
-			alert("Link copied to clipboard!");
+			// Show a second toast with the login action
+			toast.custom(
+				<div className="bg-primary-accent text-white px-4 py-2 rounded-md">
+					<button onClick={() => router.push("/login")} className="font-medium">
+						Click to login
+					</button>
+				</div>,
+				{
+					id: "login-button",
+					duration: 5000,
+				}
+			);
+			return;
+		}
+
+		if (isSaved) {
+			removeResource(id);
+		} else if (resource) {
+			addResource(id, {
+				id: resource.id,
+				title: resource.title,
+				description: resource.content,
+				imageUrl: resource.imageUrl,
+				sourceUrl: resource.sourceUrl,
+			});
 		}
 	};
+
+	// Process HTML content for safe display
+	const processedContent = resource ? processHtmlForDetail(resource.fullContent) : "";
 
 	if (isLoading) {
 		return (
 			<main className="min-h-screen w-full">
 				<Header />
-				<div className="max-w-[1000px] mx-auto px-6 md:px-8 py-12">
-					<div className="flex items-center justify-center py-16">
-						<div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-accent"></div>
+				<div className="max-w-[1200px] mx-auto px-6 md:px-12 lg:px-16 py-12">
+					<div className="animate-pulse">
+						<div className="h-10 w-3/4 bg-gray-200 rounded mb-6"></div>
+						<div className="h-4 w-full bg-gray-200 rounded mb-2"></div>
+						<div className="h-4 w-full bg-gray-200 rounded mb-2"></div>
+						<div className="h-4 w-2/3 bg-gray-200 rounded mb-6"></div>
+						<div className="h-60 w-full bg-gray-200 rounded"></div>
 					</div>
 				</div>
 				<Footer />
@@ -94,22 +143,15 @@ export default function ResourceDetailPage() {
 		return (
 			<main className="min-h-screen w-full">
 				<Header />
-				<div className="max-w-[1000px] mx-auto px-6 md:px-8 py-12">
-					<button
-						onClick={() => router.back()}
-						className="flex items-center gap-2 text-primary-accent hover:underline mb-6"
-					>
-						<FaArrowLeft className="w-3 h-3" /> Back
-					</button>
-
-					<div className="bg-red-50 text-red-700 p-6 rounded-lg text-center">
-						<h2 className="text-xl font-semibold mb-2">Resource Not Found</h2>
-						<p>{error || "We couldn't find the resource you're looking for."}</p>
+				<div className="max-w-[1200px] mx-auto px-6 md:px-12 lg:px-16 py-12">
+					<div className="bg-red-50 p-6 rounded-lg border border-red-100">
+						<h2 className="text-xl font-semibold text-red-600 mb-2">Error</h2>
+						<p className="text-red-700">{error || "Resource not found"}</p>
 						<button
-							onClick={() => router.push("/resources")}
-							className="mt-4 px-6 py-2 bg-primary-accent text-white rounded-full hover:bg-primary-accent/90"
+							onClick={() => router.back()}
+							className="mt-4 flex items-center gap-2 text-primary-accent"
 						>
-							Return to Resources
+							<FaArrowLeft className="w-4 h-4" /> Go Back
 						</button>
 					</div>
 				</div>
@@ -121,69 +163,69 @@ export default function ResourceDetailPage() {
 	return (
 		<main className="min-h-screen w-full">
 			<Header />
-
-			<div className="max-w-[1000px] mx-auto px-6 md:px-8 py-12">
+			<div className="max-w-[1200px] mx-auto px-6 md:px-12 lg:px-16 py-12">
 				{/* Back button */}
 				<button
 					onClick={() => router.back()}
-					className="flex items-center gap-2 text-primary-accent hover:underline mb-6"
+					className="flex items-center gap-2 text-primary-accent hover:text-primary-accent/80 transition-colors duration-200 mb-6"
 				>
-					<FaArrowLeft className="w-3 h-3" /> Back
+					<FaArrowLeft className="w-4 h-4" /> Back
 				</button>
 
-				{/* Resource detail */}
-				<article className="bg-white rounded-xl overflow-hidden shadow-sm">
-					{/* Hero image */}
-					<div className="w-full">
-						<div className="container mx-auto grid md:grid-cols-2 gap-6 items-center px-4 py-8">
-							{/* Content Column */}
-							<div className="order-2 md:order-1">
-								<h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900 mt-3">
+				{/* Resource Detail */}
+				<article className="bg-white rounded-xl overflow-hidden border border-gray-200 shadow-md">
+					{/* Header Section with Title and Image side-by-side */}
+					<div className="flex flex-col md:flex-row">
+						{/* Title and Actions Column */}
+						<div className="p-6 md:w-1/2 flex flex-col">
+							<div>
+								<h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-primary-heading mb-4">
 									{resource.title}
 								</h1>
-								<span className="px-3 py-1 text-sm font-semibold text-white bg-primary-accent rounded-full">
-									{resource.category}
-								</span>
+							</div>
+
+							{/* Action buttons */}
+							<div className="flex items-center gap-4 mt-4">
 								<button
 									onClick={handleSaveToggle}
-									className="flex items-center gap-2 px-4 py-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
+									className="flex items-center gap-2 px-4 py-2 rounded-full hover:bg-gray-100 transition-colors duration-200"
+									title={isSaved ? "Remove from saved" : "Save resource"}
 								>
 									{isSaved ? (
 										<>
 											<FaBookmark className="w-4 h-4 text-primary-accent" />
-											<span>Saved</span>
+											<span className="text-primary-heading font-medium">Saved</span>
 										</>
 									) : (
 										<>
 											<FaRegBookmark className="w-4 h-4 text-primary-accent" />
-											<span>Save</span>
+											<span className="text-primary-heading font-medium">Save</span>
 										</>
 									)}
 								</button>
 							</div>
+						</div>
 
-							{/* Image Column */}
-							<div className="order-1 md:order-2 relative">
-								<div className="aspect-[4/3] w-full overflow-hidden rounded-lg shadow-md">
-									<Image
-										src={resource.imageUrl}
-										alt={resource.title}
-										width={400}
-										height={400}
-										className="object-cover w-full h-full"
-										sizes="(max-width: 768px) 100vw, 600px"
-										priority
-									/>
-								</div>
+						{/* Image Column */}
+						<div className="relative md:w-1/2 h-auto">
+							<div className="aspect-[4/3] w-full h-full">
+								<Image
+									src={resource.imageUrl}
+									alt={resource.title}
+									fill
+									className="object-cover"
+									sizes="(max-width: 768px) 100vw, 50vw"
+									priority
+								/>
 							</div>
 						</div>
 					</div>
 
 					{/* Content */}
-					<div className="p-6 md:p-8">
+					<div className="p-6 md:p-8 border-t border-gray-200">
 						<div
-							className="prose max-w-none prose-headings:text-primary-heading prose-a:text-primary-accent"
-							dangerouslySetInnerHTML={{ __html: resource.fullContent }}
+							className="content-html prose prose-lg max-w-none"
+							dangerouslySetInnerHTML={{ __html: processedContent }}
 						/>
 
 						{resource.url && (

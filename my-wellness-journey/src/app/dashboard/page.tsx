@@ -1,143 +1,344 @@
 "use client";
 
-import { useState } from "react";
-import ResourceCard from "../components/ResourceCard";
-import { FaArrowRight, FaBookmark, FaRegBookmark } from "react-icons/fa";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { FaArrowRight } from "react-icons/fa";
+import toast from "react-hot-toast";
+
 import Header from "../components/Header";
 import Footer from "../components/Footer";
-import TipCard from "../components/TipCard";
+import ResourceCard from "../components/ResourceCard";
+import { fetchWithAuth } from "../../lib/auth/authFetch";
+import { Loading } from "../components/Loading";
+import AuthProvider from "../components/AuthProvider";
+import { useTipOfDayStore } from "../../stores/tipOfTheDayStore";
+import { useSavedStore } from "../../stores/savedStore";
+import { useResourceHistoryStore } from "../../stores/resourceHistoryStore";
+import { EmptyState } from "../components/EmptyState";
+import { useAuthStore } from "@/stores/authStore";
+import { Resource } from "@/types/resource";
+import { Tip } from "@/types/tip";
+import TipOfTheDay from "../components/TipOfTheDay";
+import RecommendedResources from "../components/RecommendedResources";
+
+// Define types for our data
+interface Profile {
+	firstName: string;
+	lastName: string;
+	dateOfBirth?: string;
+	gender?: string;
+	conditions?: Array<{ id: string; name: string }>;
+	savedResources?: Array<{ id: string; savedAt: string }>;
+	savedTips?: Array<{ id: string; savedAt: string }>;
+}
 
 export default function DashboardPage() {
-	// Temporary state for bookmark functionality
-	const [isDailyTipSaved, setIsDailyTipSaved] = useState(false);
+	const router = useRouter();
 
-	// Sample daily tip
-	const dailyTip = {
-		title: "Morning Stretching Routine",
-		content:
-			"Start your day with 5-10 minutes of gentle stretching. Focus on your neck, shoulders, and back to improve flexibility and reduce stiffness.",
-		source: "Mayo Clinic",
+	const [isLoading, setIsLoading] = useState(true);
+	const [error, setError] = useState("");
+	const [profile, setProfile] = useState<Profile | null>(null);
+
+	const { isAuthenticated } = useAuthStore();
+
+	// Tip of the day state from Zustand store
+	const {
+		tip: dailyTip,
+		dismissed,
+		isLoading: tipLoading,
+		error: tipError,
+		fetchTipOfDay,
+		dismissForToday,
+		showTip,
+		resetStore,
+		migrateTipIfNeeded,
+	} = useTipOfDayStore();
+
+	// Saved items state
+	const {
+		savedTips,
+		savedResources,
+		addTip,
+		removeTip,
+		addResource,
+		removeResource,
+		savedResourcesData,
+		fetchSavedResources,
+		fetchSavedTips,
+	} = useSavedStore();
+
+	// Recently viewed resources state
+	const { history: recentlyViewedResources } = useResourceHistoryStore();
+
+	// State for done tips
+	const [doneTips, setDoneTips] = useState<string[]>([]);
+
+	// State to force re-render when savedTips changes
+	const [savedTipsKey, setSavedTipsKey] = useState(0);
+
+	// Fetch saved resources and tips when the component mounts or auth state changes
+	useEffect(() => {
+		if (isAuthenticated) {
+			fetchSavedResources();
+			fetchSavedTips();
+		}
+	}, [isAuthenticated, fetchSavedResources, fetchSavedTips]);
+
+	// Update savedTipsKey when savedTips changes to force re-render
+	useEffect(() => {
+		setSavedTipsKey((prev) => prev + 1);
+	}, [savedTips]);
+
+	// Load done tips from localStorage
+	useEffect(() => {
+		const storedDoneTips = localStorage.getItem("doneTips");
+		if (storedDoneTips) {
+			setDoneTips(JSON.parse(storedDoneTips));
+		}
+	}, []);
+
+	// Fetch profile data
+	useEffect(() => {
+		const fetchProfileData = async () => {
+			setIsLoading(true);
+			setError("");
+
+			try {
+				// Fetch user profile first
+				const profileResponse = await fetchWithAuth("/api/user/profile");
+
+				if (!profileResponse.ok) {
+					const errorText = await profileResponse.text();
+					throw new Error("Failed to fetch profile");
+				}
+
+				const profileData = await profileResponse.json();
+				setProfile(profileData.profile);
+			} catch (err) {
+				console.error("Error loading dashboard:", err);
+				setError("Failed to load dashboard data");
+			} finally {
+				setIsLoading(false);
+			}
+		};
+
+		fetchProfileData();
+	}, []);
+
+	// Fetch tip of the day
+	useEffect(() => {
+		fetchTipOfDay();
+		// Try to migrate the tip if needed
+		if (dailyTip && ("title" in dailyTip || "content" in dailyTip)) {
+			migrateTipIfNeeded();
+		}
+	}, [fetchTipOfDay, dailyTip, migrateTipIfNeeded]);
+
+	// Prepare the tip with saved and done states
+	const preparedTip = dailyTip
+		? {
+				...dailyTip,
+				saved: savedTips.includes(dailyTip.id),
+				done: doneTips.includes(dailyTip.id),
+		  }
+		: null;
+
+	// Handle saving/unsaving a tip
+	const handleSaveTip = (tipId: string) => {
+		if (!dailyTip) return;
+
+		const isCurrentlySaved = savedTips.includes(tipId);
+
+		try {
+			if (isCurrentlySaved) {
+				// Call the store function to remove the tip
+				removeTip(tipId);
+				toast.success("Tip removed from saved", {
+					duration: 2000,
+					position: "bottom-center",
+				});
+			} else {
+				// Call the store function to add the tip
+				addTip(tipId, dailyTip);
+				toast.success("Tip saved", {
+					duration: 2000,
+					position: "bottom-center",
+				});
+			}
+
+			// Force a re-render
+			setSavedTipsKey((prev) => prev + 1);
+		} catch (error) {
+			console.error("Error toggling save status:", error);
+			toast.error("Failed to update saved status");
+		}
 	};
 
-	// Sample recommended resources
-	const recommendedResources = [
-		{
-			id: "1",
-			title: "Understanding Mental Health",
-			description:
-				"A comprehensive guide to understanding and maintaining good mental health in today's fast-paced world.",
-			category: "Mental Health",
-			imageUrl: "https://images.unsplash.com/photo-1493836512294-502baa1986e2",
-		},
-		{
-			id: "2",
-			title: "Balanced Nutrition Guide",
-			description: "Learn how to create balanced, nutritious meals that fuel your body and mind.",
-			category: "Nutrition",
-			imageUrl: "https://images.unsplash.com/photo-1490645935967-10de6ba17061",
-		},
-		{
-			id: "3",
-			title: "Better Sleep Habits",
-			description:
-				"Expert tips and strategies for improving your sleep quality and establishing a healthy sleep routine.",
-			category: "Sleep",
-			imageUrl: "https://images.unsplash.com/photo-1541781774459-bb2af2f05b55",
-		},
-	];
+	// Handle dismissing the tip for today
+	const handleDismissTip = () => {
+		dismissForToday();
+		toast.success("Tip dismissed for today");
+	};
 
-	// Sample recent activity
-	const recentActivity = [
-		{
-			id: "1",
-			title: "Understanding Mental Health",
-			description:
-				"A comprehensive guide to understanding and maintaining good mental health in today's fast-paced world.",
-			category: "Mental Health",
-			imageUrl: "https://images.unsplash.com/photo-1493836512294-502baa1986e2",
-		},
-		{
-			id: "2",
-			title: "Balanced Nutrition Guide",
-			description: "Learn how to create balanced, nutritious meals that fuel your body and mind.",
-			category: "Nutrition",
-			imageUrl: "https://images.unsplash.com/photo-1490645935967-10de6ba17061",
-		},
-		{
-			id: "3",
-			title: "Better Sleep Habits",
-			description:
-				"Expert tips and strategies for improving your sleep quality and establishing a healthy sleep routine.",
-			category: "Sleep",
-			imageUrl: "https://images.unsplash.com/photo-1541781774459-bb2af2f05b55",
-		},
-	];
+	// Handle resetting the tip
+	const handleResetTip = () => {
+		showTip();
+		toast.success("Showing tip of the day");
+	};
+
+	// Handle complete reset of tip store
+	const handleCompleteReset = () => {
+		resetStore();
+		fetchTipOfDay();
+		toast.success("Tip of the day has been reset");
+	};
+
+	// Handle marking a tip as done
+	const handleMarkDone = (tipId: string) => {
+		// Store done tips in localStorage
+		const storedDoneTips = localStorage.getItem("doneTips");
+		const currentDoneTips = storedDoneTips ? JSON.parse(storedDoneTips) : [];
+
+		const isDone = currentDoneTips.includes(tipId);
+
+		// Toggle the done status
+		let updatedDoneTips;
+		if (isDone) {
+			updatedDoneTips = currentDoneTips.filter((id: string) => id !== tipId);
+		} else {
+			updatedDoneTips = [...currentDoneTips, tipId];
+		}
+
+		// Save to localStorage and update state
+		localStorage.setItem("doneTips", JSON.stringify(updatedDoneTips));
+		setDoneTips(updatedDoneTips);
+
+		// Show confirmation toast
+		toast.success(isDone ? "Tip unmarked as done" : "Tip marked as done", {
+			duration: 2000,
+			position: "bottom-center",
+		});
+	};
+
+	// Handle saving/unsaving a resource
+	const handleSaveResource = (resource: Resource) => {
+		if (!resource) return;
+
+		const resourceId = resource.id;
+
+		if (savedResources.includes(resourceId)) {
+			removeResource(resourceId);
+		} else {
+			addResource(resourceId, resource);
+		}
+	};
+
+	if (isLoading) {
+		return (
+			<div className="min-h-screen bg-background">
+				<Header />
+				<Loading />
+				<Footer />
+			</div>
+		);
+	}
+
+	if (error) {
+		return (
+			<div className="min-h-screen bg-background">
+				<Header />
+				<div className="container mx-auto px-4 py-8">
+					<div className="text-center">
+						<h2 className="text-2xl font-bold text-error mb-4">Something went wrong</h2>
+						<p className="text-gray-600">{error}</p>
+					</div>
+				</div>
+				<Footer />
+			</div>
+		);
+	}
+
+	// Define greeting based on time of day
+	const getGreeting = () => {
+		const hour = new Date().getHours();
+		if (hour < 12) return "Good morning";
+		if (hour < 18) return "Good afternoon";
+		return "Good evening";
+	};
+
+	// Force re-render when savedResources changes
+	// This ensures the UI stays in sync with the state
+	const savedResourcesKey = savedResources.join(",");
 
 	return (
-		<main className="min-h-screen w-full">
-			<Header />
-			<div className="max-w-[1200px] mx-auto px-6 md:px-12 lg:px-16 py-12">
-				{/* Greeting Section */}
-				<h1 className="text-3xl md:text-4xl font-bold text-primary-heading mb-4">
-					Good morning, John
-				</h1>
-				<p className="text-primary-subheading mb-8">Here's your wellness tip for today:</p>
+		<AuthProvider requireAuth={true} redirectTo="/login">
+			<main className="min-h-screen w-full">
+				<Header />
+				<div className="max-w-[1200px] mx-auto px-6 md:px-12 lg:px-16 py-12">
+					{/* Greeting Section */}
+					<h1 className="text-3xl md:text-4xl font-bold text-primary-heading mb-4">
+						{getGreeting()}, {profile?.firstName || "User"}
+					</h1>
 
-				{/* Daily Tip Card */}
-				<div className="mb-16 max-w-2xl mx-auto">
-					<TipCard
-						id="daily-tip"
-						title={dailyTip.title}
-						content={dailyTip.content}
-						category="Daily Tip"
-						source={dailyTip.source}
-						isSaved={isDailyTipSaved}
-						onSaveToggle={() => setIsDailyTipSaved(!isDailyTipSaved)}
-						showFullContent={true}
-						onDismiss={() => console.log("Tip dismissed")}
+					{/* Daily Tip Card Section */}
+					<TipOfTheDay
+						key={`tip-of-day-${savedTipsKey}`}
+						tip={preparedTip}
+						isLoading={tipLoading}
+						dismissed={dismissed}
+						onDismiss={handleDismissTip}
+						onReset={handleResetTip}
+						onSaveToggle={handleSaveTip}
+						savedTips={savedTips}
+						allowDismiss={true}
+						onMarkDone={handleMarkDone}
 					/>
+
+					{/* Resources Based on Health Profile */}
+					<RecommendedResources />
+
+					{/* Recently Viewed Resources */}
+					<section className="mb-16">
+						<div className="flex items-center justify-between mb-8">
+							<h2 className="text-2xl font-semibold text-primary-heading">
+								Recently Viewed Resources
+							</h2>
+							<Link
+								href="/resources"
+								className="text-primary-accent hover:text-primary-accent/80 transition-colors duration-200 flex items-center gap-2 whitespace-nowrap"
+							>
+								View All Resources <FaArrowRight className="w-4 h-4" />
+							</Link>
+						</div>
+
+						{recentlyViewedResources.length === 0 ? (
+							<EmptyState
+								title="No Recent Activity"
+								message="You haven't viewed any resources yet"
+								actionLabel="Explore Resources"
+								actionUrl="/resources"
+							/>
+						) : (
+							<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+								{recentlyViewedResources.slice(0, 3).map((resource) => (
+									<ResourceCard
+										key={resource.id}
+										id={resource.id}
+										title={resource.title}
+										description={resource.description}
+										imageUrl={resource.imageUrl}
+										sourceUrl={resource.sourceUrl}
+										isSaved={savedResources.includes(resource.id)}
+										onSaveToggle={() => handleSaveResource(resource)}
+									/>
+								))}
+							</div>
+						)}
+					</section>
 				</div>
-
-				{/* Resources Based on Health Profile */}
-				<section className="mb-16">
-					<div className="flex items-center justify-between mb-8">
-						<h2 className="text-2xl font-semibold text-primary-heading">
-							Resources Based on Your Health Profile
-						</h2>
-						<Link
-							href="/resources"
-							className="text-primary-accent hover:text-primary-accent/80 transition-colors duration-200 flex items-center gap-2 whitespace-nowrap"
-						>
-							View All <FaArrowRight className="w-4 h-4" />
-						</Link>
-					</div>
-					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-						{recommendedResources.map((resource) => (
-							<ResourceCard key={resource.id} {...resource} />
-						))}
-					</div>
-				</section>
-
-				{/* Recent Activity */}
-				<section>
-					<div className="flex items-center justify-between mb-8">
-						<h2 className="text-2xl font-semibold text-primary-heading">Your Recent Activity</h2>
-						<Link
-							href="/activity"
-							className="text-primary-accent hover:text-primary-accent/80 transition-colors duration-200 flex items-center gap-2 whitespace-nowrap"
-						>
-							View All <FaArrowRight className="w-4 h-4" />
-						</Link>
-					</div>
-					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-						{recentActivity.map((resource) => (
-							<ResourceCard key={resource.id} {...resource} />
-						))}
-					</div>
-				</section>
-			</div>
-			<Footer />
-		</main>
+				<Footer />
+			</main>
+		</AuthProvider>
 	);
 }

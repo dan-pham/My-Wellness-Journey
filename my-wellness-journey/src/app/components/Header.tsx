@@ -9,18 +9,18 @@ import MobileMenu from "./MobileMenu";
 import { useAuthNavigation } from "../hooks/useAuthNavigation";
 import PageGradient from "./PageGradient";
 import { useUIStore } from "../../stores/uiStore";
+import { useAuthStore } from "../../stores/authStore";
 
 const Header = () => {
 	const pathname = usePathname();
 	const { navigateToLogin } = useAuthNavigation();
 
-	const isSignedIn = true;
-
-	// Zustand store
+	// Zustand stores
+	const { isAuthenticated } = useAuthStore();
 	const { isMobileMenuOpen, toggleMobileMenu } = useUIStore();
 
 	// Map routes to labels
-	const navItems = isSignedIn
+	const navItems = isAuthenticated
 		? [
 				{ label: "Dashboard", href: "/dashboard" },
 				{ label: "Resources", href: "/resources" },
@@ -40,6 +40,9 @@ const Header = () => {
 		if (href === "/dashboard") {
 			return pathname === "/dashboard";
 		}
+		if (href === "/profile") {
+			return pathname === "/profile";
+		}
 		return pathname.startsWith(href);
 	};
 
@@ -51,7 +54,7 @@ const Header = () => {
 		<PageGradient type="top">
 			<header className="w-full bg-white shadow-sm h-[100px]">
 				<div className="mx-auto max-w-[1200px] h-full flex justify-between items-center px-4 md:px-8">
-					<Link href={isSignedIn ? "/dashboard" : "/"} className="flex items-center gap-2">
+					<Link href={isAuthenticated ? "/dashboard" : "/"} className="flex items-center gap-2">
 						<Image
 							src="/logo.png"
 							alt="My Wellness Journey Logo"
@@ -67,14 +70,15 @@ const Header = () => {
 
 					<div className="flex items-center gap-4">
 						<div className="hidden md:flex items-center gap-8">
-							{!isSignedIn && <Button text="Get started" onClick={handleAuthClick} />}
-							{isSignedIn && (
+							{!isAuthenticated && <Button text="Get started" onClick={handleAuthClick} />}
+							{isAuthenticated && (
 								<Link
 									href="/profile"
-									className="p-2 rounded-full hover:bg-primary-accent/10 transition-colors duration-200"
+									className="flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-primary-accent/10 transition-colors duration-200"
 									aria-label="My Profile"
 								>
-									<FaUserCircle className="w-12 h-12 text-primary-accent" />
+									<FaUserCircle className="w-6 h-6 text-primary-accent" />
+									<span className="text-primary-accent font-medium">My Profile</span>
 								</Link>
 							)}
 						</div>
@@ -91,9 +95,9 @@ const Header = () => {
 					<MobileMenu
 						isOpen={isMobileMenuOpen}
 						onClose={toggleMobileMenu}
-						navItems={navItems}
+						navItems={isAuthenticated ? [...navItems, { label: "My Profile", href: "/profile" }] : navItems}
 						isSelected={isSelected}
-						isSignedIn={isSignedIn}
+						isSignedIn={isAuthenticated}
 						onAuthClick={handleAuthClick}
 					/>
 				</div>

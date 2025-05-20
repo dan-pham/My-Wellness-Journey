@@ -2,7 +2,6 @@ export interface MyHealthFinder {
 	id: string;
 	title: string;
 	content: string;
-	category: string;
 	conditions: string[];
 	sourceUrl: string;
 	source?: string;
@@ -28,7 +27,6 @@ export async function fetchHealthData(
 		const params = new URLSearchParams({
 			keyword: query || "general",
 			lang: "en",
-			categoryId: "health-condition",
 			limit: count.toString(),
 		});
 
@@ -40,8 +38,6 @@ export async function fetchHealthData(
 		}
 
 		const data = await response.json();
-
-		console.log(data);
 
 		// Check if the response has the expected structure
 		if (!data.Result || !data.Result.Resources || !data.Result.Resources.Resource) {
@@ -58,17 +54,10 @@ export async function fetchHealthData(
 			// Extract the first section content, which contains the main information
 			const sectionContent = resource.Sections?.section?.[0]?.Content || "";
 
-			// Get a category from the resource if available
-			let category = "Health Information";
-			if (resource.Categories && resource.Categories.trim() !== "") {
-				category = resource.Categories;
-			}
-
 			return {
 				id: resource.Id || Math.random().toString(36).substring(2, 9),
 				title: resource.Title || "Health Tip",
 				content: sectionContent || resource.MyHFDescription || "No content available",
-				category: category,
 				conditions: query,
 				source: "health.gov",
 				sourceUrl: resource.AccessibleVersion || resource.HealthfinderUrl,
@@ -123,7 +112,6 @@ export async function fetchHealthDataById(id: string): Promise<MyHealthFinder | 
 			id: resource.Id,
 			title: resource.Title || "Health Resource",
 			content: sectionContent || resource.MyHFDescription || "No content available",
-			category: resource.Categories || "Health Information",
 			conditions: ["general"],
 			source: "health.gov",
 			sourceUrl: resource.AccessibleVersion || resource.HealthfinderUrl,

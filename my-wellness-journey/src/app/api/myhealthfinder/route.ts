@@ -5,7 +5,6 @@ export async function GET(req: NextRequest) {
 		const { searchParams } = new URL(req.url);
 		const keyword = searchParams.get("keyword") || "general";
 		const lang = "en";
-		const categoryId = searchParams.get("categoryId") || "health-condition";
 		const limit = searchParams.get("limit") || "10";
 
 		// Health.gov API for evidence-based health tips
@@ -14,7 +13,6 @@ export async function GET(req: NextRequest) {
 		const params = new URLSearchParams({
 			keyword,
 			lang,
-			categoryId,
 			limit,
 		});
 

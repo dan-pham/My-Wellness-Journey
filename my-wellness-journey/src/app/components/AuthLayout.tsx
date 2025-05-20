@@ -32,7 +32,7 @@ const AuthLayout = ({ children, route, alternateLink }: AuthLayoutProps) => {
 			</PageGradient>
 
 			{/* Breadcrumb */}
-			<div className="max-w-[1200px] mx-auto px-6 md:px-12 lg:px-16 mt-8">
+			<div data-testid="breadcrumb" className="max-w-[1200px] mx-auto px-6 md:px-12 lg:px-16 mt-8">
 				<div className="flex items-center gap-2 text-sm text-primary-subheading mb-8">
 					<Link href="/" className="hover:text-primary-accent transition-colors duration-200">
 						Home
@@ -43,7 +43,10 @@ const AuthLayout = ({ children, route, alternateLink }: AuthLayoutProps) => {
 			</div>
 
 			{/* Main content */}
-			<div className="max-w-[1200px] mx-auto px-6 md:px-12 lg:px-16 py-12 pb-24 md:pb-32">
+			<div
+				data-testid="auth-content-container"
+				className="max-w-[1200px] mx-auto px-6 md:px-12 lg:px-16 py-12 pb-24 md:pb-32"
+			>
 				<div className="flex flex-col md:flex-row items-center justify-between gap-12">
 					{/* Left side - Text and Image */}
 					<div className="w-full md:w-[45%] space-y-6">
@@ -58,6 +61,7 @@ const AuthLayout = ({ children, route, alternateLink }: AuthLayoutProps) => {
 									src="https://images.unsplash.com/photo-1586498024141-1940debde48d?q=80&w=1587&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
 									alt="Grandpa carrying granddaughter"
 									fill
+									sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 400px"
 									className="object-cover"
 									priority
 								/>
