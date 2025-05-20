@@ -11,16 +11,55 @@ import PageGradient from "./PageGradient";
 import { useUIStore } from "../../stores/uiStore";
 import { useAuthStore } from "../../stores/authStore";
 
-const Header = () => {
-	const pathname = usePathname();
-	const { navigateToLogin } = useAuthNavigation();
+// Types and Interfaces
+interface NavItem {
+	label: string;
+	href: string;
+}
 
-	// Zustand stores
-	const { isAuthenticated } = useAuthStore();
-	const { isMobileMenuOpen, toggleMobileMenu } = useUIStore();
+interface LogoProps {
+	isAuthenticated: boolean;
+}
 
-	// Map routes to labels
-	const navItems = isAuthenticated
+interface AuthButtonsProps {
+	isAuthenticated: boolean;
+	onAuthClick: () => void;
+}
+
+// Components
+const Logo: React.FC<LogoProps> = ({ isAuthenticated }) => (
+	<Link href={isAuthenticated ? "/dashboard" : "/"} className="flex items-center gap-2">
+		<Image
+			src="/logo.png"
+			alt="My Wellness Journey Logo"
+			width={60}
+			height={60}
+			className="rounded-full"
+			priority
+		/>
+		<p className="text-xl font-bold text-primary-accent">My Wellness Journey</p>
+	</Link>
+);
+
+const AuthButtons: React.FC<AuthButtonsProps> = ({ isAuthenticated, onAuthClick }) => (
+	<div className="hidden md:flex items-center gap-8">
+		{!isAuthenticated && <Button text="Get started" onClick={onAuthClick} />}
+		{isAuthenticated && (
+			<Link
+				href="/profile"
+				className="flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-primary-accent/10 transition-colors duration-200"
+				aria-label="My Profile"
+			>
+				<FaUserCircle className="w-6 h-6 text-primary-accent" />
+				<span className="text-primary-accent font-medium">My Profile</span>
+			</Link>
+		)}
+	</div>
+);
+
+// Utility Functions
+const getNavItems = (isAuthenticated: boolean): NavItem[] =>
+	isAuthenticated
 		? [
 				{ label: "Dashboard", href: "/dashboard" },
 				{ label: "Resources", href: "/resources" },
@@ -32,57 +71,31 @@ const Header = () => {
 				{ label: "Tips", href: "/tips" },
 		  ];
 
-	// Handle selection for subpaths
-	const isSelected = (href: string) => {
-		if (href === "/") {
-			return pathname === "/";
-		}
-		if (href === "/dashboard") {
-			return pathname === "/dashboard";
-		}
-		if (href === "/profile") {
-			return pathname === "/profile";
-		}
-		return pathname.startsWith(href);
-	};
+const isSelected = (pathname: string, href: string): boolean => {
+	if (href === "/") return pathname === "/";
+	if (href === "/dashboard") return pathname === "/dashboard";
+	if (href === "/profile") return pathname === "/profile";
+	return pathname.startsWith(href);
+};
 
-	const handleAuthClick = () => {
-		navigateToLogin();
-	};
+// Main Component
+const Header: React.FC = () => {
+	const pathname = usePathname();
+	const { navigateToLogin } = useAuthNavigation();
+	const { isAuthenticated } = useAuthStore();
+	const { isMobileMenuOpen, toggleMobileMenu } = useUIStore();
+
+	const navItems = getNavItems(isAuthenticated);
 
 	return (
 		<PageGradient type="top">
 			<header className="w-full bg-white shadow-sm h-[100px]">
 				<div className="mx-auto max-w-[1200px] h-full flex justify-between items-center px-4 md:px-8">
-					<Link href={isAuthenticated ? "/dashboard" : "/"} className="flex items-center gap-2">
-						<Image
-							src="/logo.png"
-							alt="My Wellness Journey Logo"
-							width={60}
-							height={60}
-							className="rounded-full"
-							priority
-						/>
-						<p className="text-xl font-bold text-primary-accent">My Wellness Journey</p>
-					</Link>
-
-					<DesktopNav navItems={navItems} isSelected={isSelected} />
+					<Logo isAuthenticated={isAuthenticated} />
+					<DesktopNav navItems={navItems} isSelected={(href) => isSelected(pathname, href)} />
 
 					<div className="flex items-center gap-4">
-						<div className="hidden md:flex items-center gap-8">
-							{!isAuthenticated && <Button text="Get started" onClick={handleAuthClick} />}
-							{isAuthenticated && (
-								<Link
-									href="/profile"
-									className="flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-primary-accent/10 transition-colors duration-200"
-									aria-label="My Profile"
-								>
-									<FaUserCircle className="w-6 h-6 text-primary-accent" />
-									<span className="text-primary-accent font-medium">My Profile</span>
-								</Link>
-							)}
-						</div>
-
+						<AuthButtons isAuthenticated={isAuthenticated} onAuthClick={navigateToLogin} />
 						<button
 							className="md:hidden p-2 rounded-md hover:bg-primary-accent/10"
 							onClick={toggleMobileMenu}
@@ -95,10 +108,12 @@ const Header = () => {
 					<MobileMenu
 						isOpen={isMobileMenuOpen}
 						onClose={toggleMobileMenu}
-						navItems={isAuthenticated ? [...navItems, { label: "My Profile", href: "/profile" }] : navItems}
-						isSelected={isSelected}
+						navItems={
+							isAuthenticated ? [...navItems, { label: "My Profile", href: "/profile" }] : navItems
+						}
+						isSelected={(href) => isSelected(pathname, href)}
 						isSignedIn={isAuthenticated}
-						onAuthClick={handleAuthClick}
+						onAuthClick={navigateToLogin}
 					/>
 				</div>
 			</header>
