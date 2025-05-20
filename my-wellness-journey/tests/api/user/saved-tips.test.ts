@@ -3,6 +3,7 @@ import { GET, POST, DELETE } from "@/app/api/user/saved-tips/route";
 import Profile from "@/models/profile";
 import mongoose from "mongoose";
 import { authenticate as originalAuthenticate } from "@/middleware/auth";
+import { validateAndSanitizeInput as originalValidateInput, ValidationSchema } from "@/middleware/validation";
 
 // Define the type for the authenticate function
 type AuthenticateFunction = typeof originalAuthenticate;
@@ -45,6 +46,14 @@ jest.mock("@/lib/cors", () => ({
 	runCorsMiddleware: jest.fn().mockResolvedValue(undefined),
 }));
 
+// Mock the validation middleware
+jest.mock("@/middleware/validation", () => ({
+	validateAndSanitizeInput: jest.fn((schema: ValidationSchema) => async (req: NextRequest) => ({
+		validated: { tipId: "test-tip-id" },
+	})),
+	isRequired: jest.fn(),
+}));
+
 // Simple helper to create a NextRequest
 const createRequest = (body: Record<string, any> = {}, urlParams?: Record<string, string>) => {
 	const req = {
@@ -81,6 +90,7 @@ describe("User API - Saved Tips", () => {
 	let userId: string;
 	let tipId: string;
 	let authenticate: jest.MockedFunction<AuthenticateFunction>;
+	let validateAndSanitizeInput: jest.MockedFunction<typeof originalValidateInput>;
 	let mockProfile: MockProfile;
 
 	beforeEach(async () => {
@@ -89,6 +99,7 @@ describe("User API - Saved Tips", () => {
 
 		// Import the mocked functions
 		({ authenticate } = require("@/middleware/auth"));
+		({ validateAndSanitizeInput } = require("@/middleware/validation"));
 
 		// Create IDs
 		userId = new mongoose.Types.ObjectId().toString();
@@ -111,6 +122,15 @@ describe("User API - Saved Tips", () => {
 
 		// Mock Profile.findOne
 		Profile.findOne = jest.fn().mockResolvedValue(mockProfile);
+
+		// Mock validateAndSanitizeInput to return a function that returns a valid result
+		validateAndSanitizeInput.mockImplementation(
+			(schema: ValidationSchema) => async (req: NextRequest) => ({
+				validated: {
+					tipId: tipId,
+				},
+			})
+		);
 	});
 
 	// GET Tests
@@ -119,7 +139,7 @@ describe("User API - Saved Tips", () => {
 		it("should get saved tips successfully", async () => {
 			const req = createRequest();
 
-			const response = await GET(req);
+			const response = await GET(req, { params: {} });
 			const data = await response.json();
 
 			expect(response.status).toBe(200);
@@ -142,7 +162,7 @@ describe("User API - Saved Tips", () => {
 
 			const req = createRequest();
 
-			const response = await GET(req);
+			const response = await GET(req, { params: {} });
 			const data = await response.json();
 
 			expect(response.status).toBe(200);
@@ -159,7 +179,7 @@ describe("User API - Saved Tips", () => {
 
 			const req = createRequest();
 
-			const response = await GET(req);
+			const response = await GET(req, { params: {} });
 			const data = await response.json();
 
 			expect(response.status).toBe(401);
@@ -173,7 +193,7 @@ describe("User API - Saved Tips", () => {
 
 			const req = createRequest();
 
-			const response = await GET(req);
+			const response = await GET(req, { params: {} });
 			const data = await response.json();
 
 			expect(response.status).toBe(404);
@@ -193,7 +213,7 @@ describe("User API - Saved Tips", () => {
 
 			const req = createRequest();
 
-			const response = await GET(req);
+			const response = await GET(req, { params: {} });
 			const data = await response.json();
 
 			expect(response.status).toBe(500);
@@ -212,7 +232,7 @@ describe("User API - Saved Tips", () => {
 				tipId: tipId,
 			});
 
-			const response = await POST(req);
+			const response = await POST(req, { params: {} });
 			const data = await response.json();
 
 			expect(response.status).toBe(200);
@@ -228,15 +248,24 @@ describe("User API - Saved Tips", () => {
 
 		// Test 400 missing tipId
 		it("should return 400 when tipId is not provided", async () => {
-			const req = createRequest({
-				// No tipId
-			});
+			// Mock validation to return a 400 response
+			validateAndSanitizeInput.mockImplementation(
+				(schema: ValidationSchema) => async (req: NextRequest) =>
+					NextResponse.json(
+						{ errors: { tipId: ["Tip ID is required"] } },
+						{ status: 400 }
+					)
+			);
 
-			const response = await POST(req);
+			const req = createRequest({});
+
+			const response = await POST(req, { params: {} });
 			const data = await response.json();
 
 			expect(response.status).toBe(400);
-			expect(data.error).toBe("Tip ID is required");
+			expect(data.errors).toBeDefined();
+			expect(data.errors.tipId).toBeDefined();
+			expect(data.errors.tipId[0]).toBe("Tip ID is required");
 			expect(mockProfile.save).not.toHaveBeenCalled();
 		});
 
@@ -253,7 +282,7 @@ describe("User API - Saved Tips", () => {
 				tipId: existingTipId,
 			});
 
-			const response = await POST(req);
+			const response = await POST(req, { params: {} });
 			const data = await response.json();
 
 			expect(response.status).toBe(400);
@@ -270,7 +299,7 @@ describe("User API - Saved Tips", () => {
 				tipId: tipId,
 			});
 
-			const response = await POST(req);
+			const response = await POST(req, { params: {} });
 			const data = await response.json();
 
 			expect(response.status).toBe(404);
@@ -292,7 +321,7 @@ describe("User API - Saved Tips", () => {
 				tipId: tipId,
 			});
 
-			const response = await POST(req);
+			const response = await POST(req, { params: {} });
 			const data = await response.json();
 
 			expect(response.status).toBe(500);
@@ -316,7 +345,7 @@ describe("User API - Saved Tips", () => {
 
 			const req = createRequest({}, { tipId: tipToUnsave });
 
-			const response = await DELETE(req);
+			const response = await DELETE(req, { params: {} });
 			const data = await response.json();
 
 			expect(response.status).toBe(200);

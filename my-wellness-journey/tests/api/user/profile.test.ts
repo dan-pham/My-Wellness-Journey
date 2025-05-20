@@ -160,7 +160,7 @@ describe("User API - Profile", () => {
 			const data = await response.json();
 
 			expect(response.status).toBe(404);
-			expect(data.error).toBe("User not found");
+			expect(data.error).toBe("Profile not found");
 		});
 
 		// Test 500 server error
@@ -267,7 +267,7 @@ describe("User API - Profile", () => {
 			const data = await response.json();
 
 			expect(response.status).toBe(404);
-			expect(data.error).toBe("User not found");
+			expect(data.error).toBe("Profile not found");
 		});
 
 		// Test 500 server error

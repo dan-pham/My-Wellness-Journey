@@ -1,11 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
-import connectDB from "@/config/db";
-import Profile from "@/models/profile";
 import { authenticate } from "@/middleware/auth";
-import mongoose from "mongoose";
+import { findProfileOrFail } from "@/lib/api/profileService";
+import { ensureConnection, closeConnection } from "@/lib/db/connection";
+import { validateAndSanitizeInput } from "@/middleware/validation";
+import { apiRateLimiter } from "@/middleware/rateLimit";
+import { withApiMiddleware } from "@/lib/apiHandler";
+import { saveResourceValidationSchema } from "./validation";
+import {
+	GetSavedResourcesResponse,
+	SaveResourceRequest,
+	SaveResourceResponse,
+	DeleteResourceResponse,
+	SavedResourceError,
+} from "./types";
 
-// Get saved resources
-export async function GET(req: NextRequest) {
+async function getSavedResourcesHandler(
+	req: NextRequest
+): Promise<NextResponse<GetSavedResourcesResponse | SavedResourceError>> {
 	try {
 		// Authenticate user
 		const authResult = await authenticate(req);
@@ -16,33 +27,31 @@ export async function GET(req: NextRequest) {
 		const { userId } = authResult;
 
 		// Connect to database
-		await connectDB();
+		await ensureConnection();
 
-		// Find profile by user ID
-		const profile = await Profile.findOne({ userId });
-
-		if (!profile) {
-			return NextResponse.json({ error: "Profile not found" }, { status: 404 });
+		try {
+			const profile = await findProfileOrFail(userId);
+			return NextResponse.json({
+				success: true,
+				savedResources: profile.savedResources || [],
+			});
+		} catch (error) {
+			if (error instanceof Error && error.message === "Profile not found") {
+				return NextResponse.json({ error: "Profile not found" }, { status: 404 });
+			}
+			throw error;
 		}
-
-		// Return saved resources
-		return NextResponse.json({
-			success: true,
-			savedResources: profile.savedResources || [],
-		});
 	} catch (error) {
-		console.error("Get saved resources error: ", error);
-		return NextResponse.json(
-			{
-				error: "Failed to get saved resources",
-			},
-			{ status: 500 }
-		);
+		console.error("Get saved resources error:", error);
+		return NextResponse.json({ error: "Failed to get saved resources" }, { status: 500 });
+	} finally {
+		await closeConnection();
 	}
 }
 
-// Save a resource
-export async function POST(req: NextRequest) {
+async function saveResourceHandler(
+	req: NextRequest
+): Promise<NextResponse<SaveResourceResponse | SavedResourceError>> {
 	try {
 		// Authenticate user
 		const authResult = await authenticate(req);
@@ -52,54 +61,59 @@ export async function POST(req: NextRequest) {
 
 		const { userId } = authResult;
 
-		// Get resource ID from request body
-		const { resourceId } = await req.json();
-
-		if (!resourceId) {
-			return NextResponse.json({ error: "Resource ID is required" }, { status: 400 });
+		// Validate input
+		const validationResult = await validateAndSanitizeInput(saveResourceValidationSchema)(req);
+		if (validationResult instanceof NextResponse) {
+			return validationResult as NextResponse<SavedResourceError>;
 		}
+
+		const { resourceId } = validationResult.validated as SaveResourceRequest;
 
 		// Connect to database
-		await connectDB();
+		await ensureConnection();
 
-		// Find profile by user ID
-		let profile = await Profile.findOne({ userId });
+		try {
+			const profile = await findProfileOrFail(userId);
 
-		// Create profile if it doesn't exist
-		if (!profile) {
-			return NextResponse.json({ error: "Profile not found" }, { status: 404 });
+			// Check if resource is already saved
+			const isAlreadySaved = profile.savedResources.some(
+				(resource: { id: string }) => resource.id === resourceId
+			);
+
+			if (isAlreadySaved) {
+				return NextResponse.json({ error: "Resource already saved" }, { status: 400 });
+			}
+
+			// Add resource to saved resources
+			profile.savedResources.push({
+				id: resourceId,
+				savedAt: new Date(),
+			});
+
+			// Save updated profile
+			await profile.save();
+
+			return NextResponse.json({
+				success: true,
+				message: "Resource saved successfully",
+			});
+		} catch (error) {
+			if (error instanceof Error && error.message === "Profile not found") {
+				return NextResponse.json({ error: "Profile not found" }, { status: 404 });
+			}
+			throw error;
 		}
-
-		// Check if resource is already saved
-		const isAlreadySaved = profile.savedResources.some(
-			(resource: { id: string }) => resource.id === resourceId
-		);
-
-		if (isAlreadySaved) {
-			return NextResponse.json({ error: "Resource already saved" }, { status: 400 });
-		}
-
-		// Add tip to saved resources
-		profile.savedResources.push({
-			id: resourceId,
-			savedAt: new Date(),
-		});
-
-		// Save updated profile
-		await profile.save();
-
-		return NextResponse.json({
-			success: true,
-			message: "Resource saved successfully",
-		});
 	} catch (error) {
-		console.error("Save resource error: ", error);
+		console.error("Save resource error:", error);
 		return NextResponse.json({ error: "Failed to save resource" }, { status: 500 });
+	} finally {
+		await closeConnection();
 	}
 }
 
-// Unsave a resource
-export async function DELETE(req: NextRequest) {
+async function deleteResourceHandler(
+	req: NextRequest
+): Promise<NextResponse<DeleteResourceResponse | SavedResourceError>> {
 	try {
 		// Authenticate user
 		const authResult = await authenticate(req);
@@ -118,39 +132,61 @@ export async function DELETE(req: NextRequest) {
 		}
 
 		// Connect to database
-		await connectDB();
+		await ensureConnection();
 
-		// Find profile by user ID
-		const profile = await Profile.findOne({ userId });
+		try {
+			const profile = await findProfileOrFail(userId);
 
-		if (!profile) {
-			return NextResponse.json({ error: "Profile not found" }, { status: 404 });
+			// Find index of resource in saved resources array
+			const resourceIndex = profile.savedResources.findIndex(
+				(resource: { id: string }) => resource.id === resourceId
+			);
+
+			if (resourceIndex === -1) {
+				return NextResponse.json(
+					{ error: "Resource not found in saved resources" },
+					{ status: 404 }
+				);
+			}
+
+			// Remove resource from saved resources
+			profile.savedResources.splice(resourceIndex, 1);
+
+			// Save updated profile
+			await profile.save();
+
+			return NextResponse.json({
+				success: true,
+				message: "Resource removed from saved resources",
+			});
+		} catch (error) {
+			if (error instanceof Error && error.message === "Profile not found") {
+				return NextResponse.json({ error: "Profile not found" }, { status: 404 });
+			}
+			throw error;
 		}
-
-		// Find index of resource in saved resources array
-		const resourceIndex = profile.savedResources.findIndex(
-			(resource: { id: mongoose.Types.ObjectId }) => resource.id.toString() === resourceId
-		);
-
-		if (resourceIndex === -1) {
-			return NextResponse.json({ error: "Resource not found in saved resources" }, { status: 404 });
-		}
-
-		// Remove resource from saved resources
-		profile.savedResources.splice(resourceIndex, 1);
-
-		// Save updated profile
-		await profile.save();
-
-		return NextResponse.json({
-			success: true,
-			message: "Resource removed from saved resources",
-		});
 	} catch (error) {
 		console.error("Unsave resource error:", error);
 		return NextResponse.json(
 			{ error: "Failed to remove resource from saved resources" },
 			{ status: 500 }
 		);
+	} finally {
+		await closeConnection();
 	}
 }
+
+export const GET = withApiMiddleware(getSavedResourcesHandler, {
+	rateLimiter: apiRateLimiter,
+	enableCors: true,
+});
+
+export const POST = withApiMiddleware(saveResourceHandler, {
+	rateLimiter: apiRateLimiter,
+	enableCors: true,
+});
+
+export const DELETE = withApiMiddleware(deleteResourceHandler, {
+	rateLimiter: apiRateLimiter,
+	enableCors: true,
+});

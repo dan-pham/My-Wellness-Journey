@@ -3,9 +3,14 @@ import { GET, POST, DELETE } from "@/app/api/user/saved-resources/route";
 import Profile from "@/models/profile";
 import mongoose from "mongoose";
 import { authenticate as originalAuthenticate } from "@/middleware/auth";
+import {
+	validateAndSanitizeInput as originalValidateInput,
+	ValidationSchema,
+} from "@/middleware/validation";
 
-// Define the type for the authenticate function
+// Define the types for our mocked functions
 type AuthenticateFunction = typeof originalAuthenticate;
+type ValidateInputFunction = typeof originalValidateInput;
 
 // Define an interface for our mock profile
 interface MockProfile {
@@ -23,10 +28,18 @@ jest.mock("@/middleware/auth", () => ({
 	authenticate: jest.fn(),
 }));
 
+// Mock the validation middleware
+jest.mock("@/middleware/validation", () => ({
+	validateAndSanitizeInput: jest.fn((schema: ValidationSchema) => async (req: NextRequest) => ({
+		validated: { resourceId: "test-resource-id" },
+	})),
+	isRequired: jest.fn(),
+}));
+
 // Mock the database connection
-jest.mock("@/config/db", () => ({
-	__esModule: true,
-	default: jest.fn().mockResolvedValue(true),
+jest.mock("@/lib/db/connection", () => ({
+	ensureConnection: jest.fn(),
+	closeConnection: jest.fn(),
 }));
 
 // Mock the rate limiter
@@ -47,40 +60,29 @@ jest.mock("@/lib/cors", () => ({
 
 // Simple helper to create a NextRequest
 const createRequest = (body: Record<string, any> = {}, urlParams?: Record<string, string>) => {
-	const req = {
-		headers: {
-			get: jest.fn(() => null),
-		},
-		json: jest.fn().mockResolvedValue(body),
-		url: "http://localhost/api/user/saved-resources",
-		nextUrl: { pathname: "/api/user/saved-resources" },
-		ip: "127.0.0.1",
-	} as unknown as NextRequest;
+	const url = new URL("http://localhost:3000/api/user/saved-resources");
 
-	// For requests with URL parameters
+	// Add URL parameters if provided
 	if (urlParams) {
-		// Mock the URL class and searchParams
-		const searchParamsObj = new URLSearchParams();
 		Object.entries(urlParams).forEach(([key, value]) => {
-			searchParamsObj.append(key, value);
+			url.searchParams.append(key, value);
 		});
-
-		// Create a mock URL that will be used when the code calls `new URL(req.url)`
-		const mockUrl = {
-			searchParams: searchParamsObj,
-		};
-
-		// Mock the global URL constructor
-		global.URL = jest.fn(() => mockUrl) as any;
 	}
 
-	return req;
+	return new NextRequest(url, {
+		method: body ? "POST" : "DELETE",
+		headers: {
+			"Content-Type": "application/json",
+		},
+		body: Object.keys(body).length > 0 ? JSON.stringify(body) : undefined,
+	});
 };
 
 describe("User API - Saved Resources", () => {
 	let userId: string;
 	let resourceId: string;
 	let authenticate: jest.MockedFunction<AuthenticateFunction>;
+	let validateAndSanitizeInput: jest.MockedFunction<ValidateInputFunction>;
 	let mockProfile: MockProfile;
 
 	beforeEach(async () => {
@@ -89,6 +91,7 @@ describe("User API - Saved Resources", () => {
 
 		// Import the mocked functions
 		({ authenticate } = require("@/middleware/auth"));
+		({ validateAndSanitizeInput } = require("@/middleware/validation"));
 
 		// Create IDs
 		userId = new mongoose.Types.ObjectId().toString();
@@ -109,6 +112,15 @@ describe("User API - Saved Resources", () => {
 		// Setup default mock behaviors
 		authenticate.mockResolvedValue({ userId });
 
+		// Mock validateAndSanitizeInput to return a function that returns a valid result
+		validateAndSanitizeInput.mockImplementation(
+			(schema: ValidationSchema) => async (req: NextRequest) => ({
+				validated: {
+					resourceId: resourceId,
+				},
+			})
+		);
+
 		// Mock Profile.findOne
 		Profile.findOne = jest.fn().mockResolvedValue(mockProfile);
 	});
@@ -119,7 +131,7 @@ describe("User API - Saved Resources", () => {
 		it("should get saved resources successfully", async () => {
 			const req = createRequest();
 
-			const response = await GET(req);
+			const response = await GET(req, { params: {} });
 			const data = await response.json();
 
 			expect(response.status).toBe(200);
@@ -142,7 +154,7 @@ describe("User API - Saved Resources", () => {
 
 			const req = createRequest();
 
-			const response = await GET(req);
+			const response = await GET(req, { params: {} });
 			const data = await response.json();
 
 			expect(response.status).toBe(200);
@@ -159,7 +171,7 @@ describe("User API - Saved Resources", () => {
 
 			const req = createRequest();
 
-			const response = await GET(req);
+			const response = await GET(req, { params: {} });
 			const data = await response.json();
 
 			expect(response.status).toBe(401);
@@ -173,7 +185,7 @@ describe("User API - Saved Resources", () => {
 
 			const req = createRequest();
 
-			const response = await GET(req);
+			const response = await GET(req, { params: {} });
 			const data = await response.json();
 
 			expect(response.status).toBe(404);
@@ -193,7 +205,7 @@ describe("User API - Saved Resources", () => {
 
 			const req = createRequest();
 
-			const response = await GET(req);
+			const response = await GET(req, { params: {} });
 			const data = await response.json();
 
 			expect(response.status).toBe(500);
@@ -212,7 +224,7 @@ describe("User API - Saved Resources", () => {
 				resourceId: resourceId,
 			});
 
-			const response = await POST(req);
+			const response = await POST(req, { params: {} });
 			const data = await response.json();
 
 			expect(response.status).toBe(200);
@@ -226,15 +238,26 @@ describe("User API - Saved Resources", () => {
 
 		// Test 400 missing resourceId
 		it("should return 400 when resourceId is not provided", async () => {
+			// Mock validation to return a 400 response
+			validateAndSanitizeInput.mockImplementation(
+				(schema: ValidationSchema) => async (req: NextRequest) =>
+					NextResponse.json(
+						{ errors: { resourceId: ["Resource ID is required"] } },
+						{ status: 400 }
+					)
+			);
+
 			const req = createRequest({
 				// No resourceId
 			});
 
-			const response = await POST(req);
+			const response = await POST(req, { params: {} });
 			const data = await response.json();
 
 			expect(response.status).toBe(400);
-			expect(data.error).toBe("Resource ID is required");
+			expect(data.errors).toBeDefined();
+			expect(data.errors.resourceId).toBeDefined();
+			expect(data.errors.resourceId[0]).toBe("Resource ID is required");
 			expect(mockProfile.save).not.toHaveBeenCalled();
 		});
 
@@ -251,7 +274,7 @@ describe("User API - Saved Resources", () => {
 				resourceId: existingResourceId,
 			});
 
-			const response = await POST(req);
+			const response = await POST(req, { params: {} });
 			const data = await response.json();
 
 			expect(response.status).toBe(400);
@@ -268,11 +291,12 @@ describe("User API - Saved Resources", () => {
 				resourceId: resourceId,
 			});
 
-			const response = await POST(req);
+			const response = await POST(req, { params: {} });
 			const data = await response.json();
 
 			expect(response.status).toBe(404);
 			expect(data.error).toBe("Profile not found");
+			expect(mockProfile.save).not.toHaveBeenCalled();
 		});
 
 		// Test 500 server error
@@ -290,7 +314,7 @@ describe("User API - Saved Resources", () => {
 				resourceId: resourceId,
 			});
 
-			const response = await POST(req);
+			const response = await POST(req, { params: {} });
 			const data = await response.json();
 
 			expect(response.status).toBe(500);
@@ -314,7 +338,7 @@ describe("User API - Saved Resources", () => {
 
 			const req = createRequest({}, { resourceId: resourceToDelete });
 
-			const response = await DELETE(req);
+			const response = await DELETE(req, { params: {} });
 			const data = await response.json();
 
 			expect(response.status).toBe(200);
@@ -327,7 +351,7 @@ describe("User API - Saved Resources", () => {
 		it("should return 400 when resourceId is not provided", async () => {
 			const req = createRequest({}, {});
 
-			const response = await DELETE(req);
+			const response = await DELETE(req, { params: {} });
 			const data = await response.json();
 
 			expect(response.status).toBe(400);
@@ -342,18 +366,19 @@ describe("User API - Saved Resources", () => {
 
 			const req = createRequest({}, { resourceId: resourceId });
 
-			const response = await DELETE(req);
+			const response = await DELETE(req, { params: {} });
 			const data = await response.json();
 
 			expect(response.status).toBe(404);
 			expect(data.error).toBe("Profile not found");
+			expect(mockProfile.save).not.toHaveBeenCalled();
 		});
 
 		// Test 404 resource not found
 		it("should return 404 when resource is not found in saved resources", async () => {
 			const req = createRequest({}, { resourceId: "non-existent-resource-id" });
 
-			const response = await DELETE(req);
+			const response = await DELETE(req, { params: {} });
 			const data = await response.json();
 
 			expect(response.status).toBe(404);
@@ -374,7 +399,7 @@ describe("User API - Saved Resources", () => {
 
 			const req = createRequest({}, { resourceId: resourceId });
 
-			const response = await DELETE(req);
+			const response = await DELETE(req, { params: {} });
 			const data = await response.json();
 
 			expect(response.status).toBe(500);

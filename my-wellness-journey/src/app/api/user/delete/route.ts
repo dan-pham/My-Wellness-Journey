@@ -1,10 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import connectDB from "@/config/db";
 import User from "@/models/user";
+import Profile from "@/models/profile";
 import { authenticate } from "@/middleware/auth";
-import { validateInput, isRequired } from "@/middleware/validation";
+import { validateAndSanitizeInput } from "@/middleware/validation";
+import { ensureConnection, closeConnection } from "@/lib/db/connection";
+import { apiRateLimiter } from "@/middleware/rateLimit";
+import { withApiMiddleware } from "@/lib/apiHandler";
+import { deleteUserValidationSchema } from "./validation";
+import { DeleteUserRequest, DeleteUserResponse, DeleteUserError } from "./types";
 
-export async function DELETE(req: NextRequest) {
+async function deleteUserHandler(
+	req: NextRequest
+): Promise<NextResponse<DeleteUserResponse | DeleteUserError>> {
 	try {
 		// Authenticate user
 		const authResult = await authenticate(req);
@@ -15,36 +22,55 @@ export async function DELETE(req: NextRequest) {
 		const { userId } = authResult;
 
 		// Validate input - require password confirmation
-		const validationSchema = {
-			password: [isRequired("Password")],
-		};
-
-		const validationResult = await validateInput(validationSchema)(req);
+		const validationResult = await validateAndSanitizeInput(deleteUserValidationSchema)(req);
 		if (validationResult instanceof NextResponse) {
-			return validationResult;
+			return validationResult as NextResponse<DeleteUserError>;
 		}
 
-		const { password } = validationResult.validated;
+		const { password } = validationResult.validated as DeleteUserRequest;
 
 		// Connect to database
-		await connectDB();
+		await ensureConnection();
 
-		// Find user by ID and include password field
-		const user = await User.findById(userId).select("+password");
+		try {
+			// Find user by ID and include password field
+			const user = await User.findById(userId).select("+password");
 
-		if (!user) {
-			return NextResponse.json({ error: "User not found" }, { status: 404 });
+			if (!user) {
+				return NextResponse.json({ error: "User not found" }, { status: 404 });
+			}
+
+			// Verify password
+			const isPasswordValid = await user.comparePassword(password);
+			if (!isPasswordValid) {
+				return NextResponse.json({ error: "Invalid password" }, { status: 401 });
+			}
+
+			// Delete user's profile first
+			await Profile.findOneAndDelete({ userId });
+
+			// Delete user from database
+			await User.findByIdAndDelete(userId);
+
+			return NextResponse.json({
+				success: true,
+				message: "User account deleted successfully",
+			});
+		} catch (error) {
+			if (error instanceof Error && error.message === "User not found") {
+				return NextResponse.json({ error: "User not found" }, { status: 404 });
+			}
+			throw error;
 		}
-
-		// Delete user from database
-		await User.findByIdAndDelete(userId);
-
-		return NextResponse.json({
-			success: true,
-			message: "User account deleted successfully",
-		});
 	} catch (error) {
 		console.error("Delete account error: ", error);
 		return NextResponse.json({ error: "Failed to delete user account" }, { status: 500 });
+	} finally {
+		await closeConnection();
 	}
 }
+
+export const DELETE = withApiMiddleware(deleteUserHandler, {
+	rateLimiter: apiRateLimiter,
+	enableCors: true,
+});

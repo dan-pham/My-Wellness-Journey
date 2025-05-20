@@ -1,11 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
-import connectDB from "@/config/db";
-import Profile from "@/models/profile";
 import { authenticate } from "@/middleware/auth";
-import mongoose from "mongoose";
+import { findProfileOrFail } from "@/lib/api/profileService";
+import { ensureConnection, closeConnection } from "@/lib/db/connection";
+import { validateAndSanitizeInput } from "@/middleware/validation";
+import { apiRateLimiter } from "@/middleware/rateLimit";
+import { withApiMiddleware } from "@/lib/apiHandler";
+import { saveTipValidationSchema } from "./validation";
+import {
+	GetSavedTipsResponse,
+	SaveTipRequest,
+	SaveTipResponse,
+	DeleteTipResponse,
+	SavedTipError,
+} from "./types";
 
-// Get user's saved tips
-export async function GET(req: NextRequest) {
+async function getSavedTipsHandler(
+	req: NextRequest
+): Promise<NextResponse<GetSavedTipsResponse | SavedTipError>> {
 	try {
 		// Authenticate user
 		const authResult = await authenticate(req);
@@ -16,28 +27,31 @@ export async function GET(req: NextRequest) {
 		const { userId } = authResult;
 
 		// Connect to database
-		await connectDB();
+		await ensureConnection();
 
-		// Find profile by user ID
-		const profile = await Profile.findOne({ userId });
-
-		if (!profile) {
-			return NextResponse.json({ error: "Profile not found" }, { status: 404 });
+		try {
+			const profile = await findProfileOrFail(userId);
+			return NextResponse.json({
+				success: true,
+				savedTips: profile.savedTips || [],
+			});
+		} catch (error) {
+			if (error instanceof Error && error.message === "Profile not found") {
+				return NextResponse.json({ error: "Profile not found" }, { status: 404 });
+			}
+			throw error;
 		}
-
-		// Return saved tips
-		return NextResponse.json({
-			success: true,
-			savedTips: profile.savedTips || [],
-		});
 	} catch (error) {
 		console.error("Get saved tips error:", error);
 		return NextResponse.json({ error: "Failed to get saved tips" }, { status: 500 });
+	} finally {
+		await closeConnection();
 	}
 }
 
-// Save a tip
-export async function POST(req: NextRequest) {
+async function saveTipHandler(
+	req: NextRequest
+): Promise<NextResponse<SaveTipResponse | SavedTipError>> {
 	try {
 		// Authenticate user
 		const authResult = await authenticate(req);
@@ -47,52 +61,57 @@ export async function POST(req: NextRequest) {
 
 		const { userId } = authResult;
 
-		// Get tip ID from request body
-		const { tipId } = await req.json();
-
-		if (!tipId) {
-			return NextResponse.json({ error: "Tip ID is required" }, { status: 400 });
+		// Validate input
+		const validationResult = await validateAndSanitizeInput(saveTipValidationSchema)(req);
+		if (validationResult instanceof NextResponse) {
+			return validationResult as NextResponse<SavedTipError>;
 		}
+
+		const { tipId } = validationResult.validated as SaveTipRequest;
 
 		// Connect to database
-		await connectDB();
+		await ensureConnection();
 
-		// Find profile by user ID
-		let profile = await Profile.findOne({ userId });
+		try {
+			const profile = await findProfileOrFail(userId);
 
-		// Create profile if it doesn't exist
-		if (!profile) {
-			return NextResponse.json({ error: "Profile not found" }, { status: 404 });
+			// Check if tip is already saved
+			const isAlreadySaved = profile.savedTips.some((tip: { id: string }) => tip.id === tipId);
+
+			if (isAlreadySaved) {
+				return NextResponse.json({ error: "Tip already saved" }, { status: 400 });
+			}
+
+			// Add tip to saved tips
+			profile.savedTips.push({
+				id: tipId,
+				savedAt: new Date(),
+			});
+
+			// Save updated profile
+			await profile.save();
+
+			return NextResponse.json({
+				success: true,
+				message: "Tip saved successfully",
+			});
+		} catch (error) {
+			if (error instanceof Error && error.message === "Profile not found") {
+				return NextResponse.json({ error: "Profile not found" }, { status: 404 });
+			}
+			throw error;
 		}
-
-		// Check if tip is already saved
-		const isAlreadySaved = profile.savedTips.some((tip: { id: string }) => tip.id === tipId);
-
-		if (isAlreadySaved) {
-			return NextResponse.json({ error: "Tip already saved" }, { status: 400 });
-		}
-
-		// Add tip to saved tips
-		profile.savedTips.push({
-			id: tipId,
-			savedAt: new Date(),
-		});
-
-		// Save updated profile
-		await profile.save();
-
-		return NextResponse.json({
-			success: true,
-			message: "Tip saved successfully",
-		});
 	} catch (error) {
 		console.error("Save tip error:", error);
 		return NextResponse.json({ error: "Failed to save tip" }, { status: 500 });
+	} finally {
+		await closeConnection();
 	}
 }
 
-// Delete endpoint to unsave a tip
-export async function DELETE(req: NextRequest) {
+async function deleteTipHandler(
+	req: NextRequest
+): Promise<NextResponse<DeleteTipResponse | SavedTipError>> {
 	try {
 		// Authenticate user
 		const authResult = await authenticate(req);
@@ -111,34 +130,53 @@ export async function DELETE(req: NextRequest) {
 		}
 
 		// Connect to database
-		await connectDB();
+		await ensureConnection();
 
-		// Find profile by user ID
-		const profile = await Profile.findOne({ userId });
+		try {
+			const profile = await findProfileOrFail(userId);
 
-		if (!profile) {
-			return NextResponse.json({ error: "Profile not found" }, { status: 404 });
+			// Find index of tip in saved tips array
+			const tipIndex = profile.savedTips.findIndex((tip: { id: string }) => tip.id === tipId);
+
+			if (tipIndex === -1) {
+				return NextResponse.json({ error: "Tip not found in saved tips" }, { status: 404 });
+			}
+
+			// Remove tip from saved tips
+			profile.savedTips.splice(tipIndex, 1);
+
+			// Save updated profile
+			await profile.save();
+
+			return NextResponse.json({
+				success: true,
+				message: "Tip removed from saved tips",
+			});
+		} catch (error) {
+			if (error instanceof Error && error.message === "Profile not found") {
+				return NextResponse.json({ error: "Profile not found" }, { status: 404 });
+			}
+			throw error;
 		}
-
-		// Find index of tip in saved tips array
-		const tipIndex = profile.savedTips.findIndex((tip: { id: string }) => tip.id === tipId);
-
-		if (tipIndex === -1) {
-			return NextResponse.json({ error: "Tip not found in saved tips" }, { status: 404 });
-		}
-
-		// Remove tip from saved tips
-		profile.savedTips.splice(tipIndex, 1);
-
-		// Save updated profile
-		await profile.save();
-
-		return NextResponse.json({
-			success: true,
-			message: "Tip removed from saved tips",
-		});
 	} catch (error) {
 		console.error("Unsave tip error:", error);
 		return NextResponse.json({ error: "Failed to remove tip from saved tips" }, { status: 500 });
+	} finally {
+		await closeConnection();
 	}
 }
+
+export const GET = withApiMiddleware(getSavedTipsHandler, {
+	rateLimiter: apiRateLimiter,
+	enableCors: true,
+});
+
+export const POST = withApiMiddleware(saveTipHandler, {
+	rateLimiter: apiRateLimiter,
+	enableCors: true,
+});
+
+export const DELETE = withApiMiddleware(deleteTipHandler, {
+	rateLimiter: apiRateLimiter,
+	enableCors: true,
+});

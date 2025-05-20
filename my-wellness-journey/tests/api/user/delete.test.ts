@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { DELETE } from "@/app/api/user/delete/route";
 import User from "@/models/user";
+import Profile from "@/models/profile";
 import mongoose from "mongoose";
 import { authenticate as originalAuthenticate } from "@/middleware/auth";
-import { validateAndSanitizeInput as originalValidateInput } from "@/middleware/validation";
+import {
+	validateAndSanitizeInput as originalValidateInput,
+	ValidationSchema,
+} from "@/middleware/validation";
 
 type AuthenticateFunction = typeof originalAuthenticate;
 type ValidateInputFunction = typeof originalValidateInput;
@@ -22,30 +26,34 @@ jest.mock("@/middleware/auth", () => ({
 
 // Mock the validation middleware
 jest.mock("@/middleware/validation", () => ({
-	validateInput: jest.fn(),
+	validateAndSanitizeInput: jest.fn((schema: ValidationSchema) => async (req: NextRequest) => ({
+		validated: { password: "password123" },
+	})),
 	isRequired: jest.fn(),
 }));
 
 // Mock the database connection
-jest.mock("@/config/db", () => ({
-	__esModule: true,
-	default: jest.fn().mockResolvedValue(true),
+jest.mock("@/lib/db/connection", () => ({
+	ensureConnection: jest.fn(),
+	closeConnection: jest.fn(),
 }));
 
 // Simple helper to create a NextRequest
 const createRequest = (body: Record<string, any> = {}) => {
-	return {
+	const url = new URL("http://localhost:3000/api/user/delete");
+	return new NextRequest(url, {
+		method: "DELETE",
 		headers: {
-			get: jest.fn(() => null),
+			"Content-Type": "application/json",
 		},
-		json: jest.fn().mockResolvedValue(body),
-	} as unknown as NextRequest;
+		body: JSON.stringify(body),
+	});
 };
 
 describe("User API - Delete Account", () => {
 	let userId: string;
 	let authenticate: jest.MockedFunction<AuthenticateFunction>;
-	let validateInput: jest.MockedFunction<ValidateInputFunction>;
+	let validateAndSanitizeInput: jest.MockedFunction<ValidateInputFunction>;
 	let mockUser: MockUser;
 
 	beforeEach(async () => {
@@ -54,7 +62,7 @@ describe("User API - Delete Account", () => {
 
 		// Import the mocked functions
 		({ authenticate } = require("@/middleware/auth"));
-		({ validateInput } = require("@/middleware/validation"));
+		({ validateAndSanitizeInput } = require("@/middleware/validation"));
 
 		// Create a mock user ID
 		userId = new mongoose.Types.ObjectId().toString();
@@ -72,9 +80,9 @@ describe("User API - Delete Account", () => {
 		// Setup default mock behaviors
 		authenticate.mockResolvedValue({ userId });
 
-		// Mock validateInput to return a function that returns a valid result
-		validateInput.mockReturnValue(
-			jest.fn().mockResolvedValue({
+		// Mock validateAndSanitizeInput to return a function that returns a valid result
+		validateAndSanitizeInput.mockImplementation(
+			(schema: ValidationSchema) => async (req: NextRequest) => ({
 				validated: {
 					password: "password123",
 				},
@@ -88,6 +96,9 @@ describe("User API - Delete Account", () => {
 
 		// Mock User.findByIdAndDelete
 		User.findByIdAndDelete = jest.fn().mockResolvedValue(true);
+
+		// Mock Profile.findOneAndDelete
+		Profile.findOneAndDelete = jest.fn().mockResolvedValue(true);
 	});
 
 	// Test 200 success
@@ -96,7 +107,7 @@ describe("User API - Delete Account", () => {
 			password: "password123",
 		});
 
-		const response = await DELETE(req);
+		const response = await DELETE(req, { params: {} });
 		const data = await response.json();
 
 		expect(response.status).toBe(200);
@@ -119,7 +130,7 @@ describe("User API - Delete Account", () => {
 			password: "password123",
 		});
 
-		const response = await DELETE(req);
+		const response = await DELETE(req, { params: {} });
 		const data = await response.json();
 
 		expect(response.status).toBe(401);
@@ -132,19 +143,14 @@ describe("User API - Delete Account", () => {
 	// Test 400 validation error
 	it("should return 400 when password is not provided", async () => {
 		// Mock validation to return a 400 response
-		validateInput.mockReturnValue(
-			jest
-				.fn()
-				.mockResolvedValue(
-					NextResponse.json({ errors: { password: ["Password is required"] } }, { status: 400 })
-				)
+		validateAndSanitizeInput.mockImplementation(
+			(schema: ValidationSchema) => async (req: NextRequest) =>
+				NextResponse.json({ errors: { password: ["Password is required"] } }, { status: 400 })
 		);
 
-		const req = createRequest({
-			// No password provided
-		});
+		const req = createRequest({});
 
-		const response = await DELETE(req);
+		const response = await DELETE(req, { params: {} });
 		const data = await response.json();
 
 		expect(response.status).toBe(400);
@@ -166,7 +172,7 @@ describe("User API - Delete Account", () => {
 			password: "password123",
 		});
 
-		const response = await DELETE(req);
+		const response = await DELETE(req, { params: {} });
 		const data = await response.json();
 
 		expect(response.status).toBe(404);
@@ -191,7 +197,7 @@ describe("User API - Delete Account", () => {
 			password: "password123",
 		});
 
-		const response = await DELETE(req);
+		const response = await DELETE(req, { params: {} });
 		const data = await response.json();
 
 		expect(response.status).toBe(500);
@@ -219,7 +225,7 @@ describe("User API - Delete Account", () => {
 			password: "password123",
 		});
 
-		const response = await DELETE(req);
+		const response = await DELETE(req, { params: {} });
 		const data = await response.json();
 
 		expect(response.status).toBe(500);
