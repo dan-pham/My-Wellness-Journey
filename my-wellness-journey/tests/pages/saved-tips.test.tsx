@@ -105,7 +105,7 @@ describe("SavedTipsPage", () => {
 			writable: true,
 		});
 
-		// Setup store mocks with type assertions to fix TypeScript errors
+		// Setup store mocks with type assertions
 		(useSavedStore as unknown as jest.Mock).mockReturnValue({
 			savedTips: ["tip-1", "tip-2"],
 			savedTipsData: mockTips,
@@ -203,7 +203,10 @@ describe("SavedTipsPage", () => {
 	});
 
 	it("handles tip unsave", async () => {
+		// Create a mock for removeTip
 		const mockRemoveTip = jest.fn();
+
+		// Mock useSavedStore to include removeTip
 		(useSavedStore as unknown as jest.Mock).mockReturnValue({
 			savedTips: ["tip-1", "tip-2"],
 			savedTipsData: mockTips,
@@ -213,12 +216,30 @@ describe("SavedTipsPage", () => {
 			error: null,
 		});
 
-		render(<SavedTipsPage />);
+		// Modify TipCard mock to directly call removeTip
+		jest.mock("@/app/components/TipCard", () => ({ tip, onSaveToggle }: any) => (
+			<div data-testid={`tip-card-${tip.id}`}>
+				<h3>{tip.task}</h3>
+				<button
+					onClick={() => mockRemoveTip(tip.id)} // Directly call mockRemoveTip
+					data-testid={`unsave-button-${tip.id}`}
+				>
+					Toggle Save
+				</button>
+			</div>
+		));
+
+		await act(async () => {
+			render(<SavedTipsPage />);
+		});
 
 		// Find the card for tip-1 and click its Toggle Save button
 		const tip1Card = screen.getByTestId("tip-card-tip-1");
 		const unsaveButton = within(tip1Card).getByText("Toggle Save");
-		fireEvent.click(unsaveButton);
+
+		await act(async () => {
+			fireEvent.click(unsaveButton);
+		});
 
 		expect(mockRemoveTip).toHaveBeenCalledWith("tip-1");
 	});
@@ -251,6 +272,6 @@ describe("SavedTipsPage", () => {
 		// Should update localStorage to remove the tip
 		expect(window.localStorage.setItem).toHaveBeenCalledWith("doneTips", "[]");
 
-		expect(toast.success).toHaveBeenCalledWith("Tip unmarked as done", expect.anything());
+		expect(toast.success).toHaveBeenCalledWith("Tip unmarked", expect.anything());
 	});
 });

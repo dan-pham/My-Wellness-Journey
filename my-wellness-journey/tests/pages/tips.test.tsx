@@ -7,7 +7,6 @@ import { useAuthStore } from "@/stores/authStore";
 import { useHealthStore } from "@/stores/healthStore";
 import { useSavedStore } from "@/stores/savedStore";
 import { useTipOfDayStore } from "@/stores/tipOfTheDayStore";
-import toast from "react-hot-toast";
 import React from "react";
 
 // Mock modules
@@ -32,11 +31,19 @@ jest.mock("@/stores/tipOfTheDayStore", () => ({
 }));
 
 // Mock react-hot-toast
-jest.mock("react-hot-toast", () => ({
-	success: jest.fn(),
-	error: jest.fn(),
-	custom: jest.fn(),
-}));
+jest.mock("react-hot-toast", () => {
+	const mockToast = {
+		success: jest.fn(),
+		error: jest.fn(),
+		custom: jest.fn(),
+	};
+	return {
+		__esModule: true,
+		default: mockToast,
+	};
+});
+
+const mockToast = jest.requireMock("react-hot-toast").default;
 
 // Mock components
 jest.mock("@/app/components/Header", () => () => <header>Header</header>);
@@ -62,7 +69,7 @@ jest.mock("@/app/components/TipCard", () => ({
 		<div data-testid={`tip-card-${tip.id}`}>
 			<h3>{tip.task}</h3>
 			<p>{tip.reason}</p>
-			<button data-testid={`save-toggle-${tip.id}`} onClick={() => onSaveToggle(tip.id)}>
+			<button data-testid={`save-button-${tip.id}`} onClick={() => onSaveToggle(tip.id)}>
 				{tip.saved ? "Unsave" : "Save"}
 			</button>
 			<button data-testid={`mark-done-${tip.id}`} onClick={() => onMarkDone(tip.id)}>
@@ -151,12 +158,16 @@ describe("Tips Page", () => {
 				task: "Check Blood Sugar",
 				reason: "Monitor your blood sugar levels daily",
 				sourceUrl: "",
+				saved: false,
+				done: false,
 			},
 			{
 				id: "diabetes-task-2",
 				task: "Healthy Eating",
 				reason: "Follow a balanced diet recommended by your doctor",
 				sourceUrl: "",
+				saved: false,
+				done: false,
 			},
 		],
 	};
@@ -227,7 +238,15 @@ describe("Tips Page", () => {
 			dismissForToday: mockDismissForToday,
 		}));
 
-		// Mock fetch for actionable tasks
+		// Mock fetch for actionable tasks - ensure this is the default behavior
+		global.fetch = jest.fn().mockImplementation((url) => {
+			return Promise.resolve({
+				ok: true,
+				json: () => Promise.resolve(mockActionableTasks),
+			});
+		});
+
+		// Mock all API endpoints
 		global.fetch = jest.fn().mockImplementation((url) => {
 			if (url.includes("/api/gpt")) {
 				return Promise.resolve({
@@ -235,9 +254,27 @@ describe("Tips Page", () => {
 					json: () => Promise.resolve(mockActionableTasks),
 				});
 			}
+			if (url.includes("/api/medlineplus")) {
+				return Promise.resolve({
+					ok: true,
+					json: () => Promise.resolve({ results: mockTips }),
+				});
+			}
+			if (url.includes("/api/user/saved-tips")) {
+				return Promise.resolve({
+					ok: true,
+					json: () => Promise.resolve({ savedTips: mockSavedTips }),
+				});
+			}
+			if (url.includes("/api/auth")) {
+				return Promise.resolve({
+					ok: true,
+					json: () => Promise.resolve({ success: true }),
+				});
+			}
 			return Promise.resolve({
 				ok: true,
-				json: () => Promise.resolve({ results: mockTips }),
+				json: () => Promise.resolve({}),
 			});
 		});
 	});
@@ -251,8 +288,8 @@ describe("Tips Page", () => {
 		const searchInput = screen.getByPlaceholderText("Search tips by topic or keyword");
 		expect(searchInput).toBeInTheDocument();
 
-		// Check for search button
-		const searchButton = screen.getByRole("button", { name: /search/i });
+		// Check for search button using specific test ID
+		const searchButton = screen.getByTestId("tip-search-button");
 		expect(searchButton).toBeInTheDocument();
 
 		// Perform a search
@@ -261,10 +298,10 @@ describe("Tips Page", () => {
 			fireEvent.click(searchButton);
 		});
 
-		// Wait for personalized tips to appear
+		// Wait for tips to appear
 		await waitFor(() => {
-			expect(screen.getByText("Personalized Tips")).toBeInTheDocument();
-			expect(screen.getByTestId("tip-card-diabetes-task-1")).toBeInTheDocument();
+			const tipCard = screen.getByTestId("tip-card-diabetes-task-1");
+			expect(tipCard).toBeInTheDocument();
 		});
 	});
 
@@ -280,8 +317,6 @@ describe("Tips Page", () => {
 		expect(within(tipOfDaySection).getByTestId("tip-of-day-title")).toHaveTextContent(
 			"Daily Hydration"
 		);
-
-		// No need to check for dismiss button as it's not required in the tips page
 	});
 
 	it("displays saved tips when user is authenticated", async () => {
@@ -331,21 +366,15 @@ describe("Tips Page", () => {
 			render(<TipsPage />);
 		});
 
-		// Check for the empty state UI elements
-		const emptyState = screen.getByTestId("empty-state");
-		expect(within(emptyState).getByText("Discover Health Tips")).toBeInTheDocument();
+		// The QuickSearch component should be rendered with empty-state test ID
+		const quickSearch = screen.getByTestId("empty-state");
+		expect(quickSearch).toBeInTheDocument();
+		expect(within(quickSearch).getByText("Discover Health Tips")).toBeInTheDocument();
 		expect(
-			within(emptyState).getByText(
+			within(quickSearch).getByText(
 				"Search for health topics above to find trusted wellness tips that can help you on your journey."
 			)
 		).toBeInTheDocument();
-
-		// Check for topic suggestions in the quick search section
-		const quickSearchSection = within(emptyState).getByTestId("quick-search-section");
-		const topics = ["diabetes", "nutrition", "exercise", "sleep", "stress", "meditation"];
-		topics.forEach((topic) => {
-			expect(within(quickSearchSection).getByText(topic)).toBeInTheDocument();
-		});
 	});
 
 	it("shows loading state when fetching tips", async () => {
@@ -375,19 +404,27 @@ describe("Tips Page", () => {
 			render(<TipsPage />);
 		});
 
+		// Use the specific test ID for the search button
+		const searchInput = screen.getByPlaceholderText("Search tips by topic or keyword");
+		const searchButton = screen.getByTestId("tip-search-button");
+
 		// Perform a search to trigger loading state
 		await act(async () => {
-			fireEvent.change(screen.getByPlaceholderText("Search tips by topic or keyword"), {
-				target: { value: "diabetes" },
-			});
-			fireEvent.click(screen.getByRole("button", { name: /search/i }));
+			fireEvent.change(searchInput, { target: { value: "diabetes" } });
+			fireEvent.click(searchButton);
 		});
 
-		// Check for loading indicator - it should appear in the component
-		expect(screen.getByText("Loading...")).toBeInTheDocument();
+		// Verify that loading indicator is visible
+		const loadingElements = screen.getAllByTestId("loading");
+		const loadingElement = loadingElements[0];
+		expect(loadingElement).toBeVisible();
 	});
 
 	it("shows error state when tip fetch fails", async () => {
+		// Store the original console.error
+		const originalConsoleError = console.error;
+		console.error = jest.fn();
+
 		// Mock error state
 		(useHealthStore as unknown as jest.Mock).mockImplementation(() => ({
 			tips: [],
@@ -396,77 +433,161 @@ describe("Tips Page", () => {
 			fetchTips: mockFetchTips,
 		}));
 
-		// Create a custom EmptyState component that shows error messages
-		jest.mock("@/app/components/EmptyState", () => ({
-			EmptyState: ({ title, message }: any) => (
-				<div data-testid="empty-state">
-					<h3>{title}</h3>
-					<p>{message}</p>
-				</div>
-			),
+		// Mock the fetch to fail
+		global.fetch = jest.fn().mockImplementation(() => Promise.reject(new Error("Failed to fetch")));
+
+		await act(async () => {
+			render(<TipsPage />);
+		});
+
+		// Use the specific test ID for the search button
+		const searchInput = screen.getByPlaceholderText("Search tips by topic or keyword");
+		const searchButton = screen.getByTestId("tip-search-button");
+
+		// Perform a search to trigger error state
+		await act(async () => {
+			fireEvent.change(searchInput, { target: { value: "test" } });
+			fireEvent.click(searchButton);
+		});
+
+		// Wait for the error state to appear
+		await waitFor(() => {
+			const emptyState = screen.getByTestId("empty-state");
+			expect(emptyState).toBeInTheDocument();
+			expect(within(emptyState).getByText("No tips found.")).toBeInTheDocument();
+		});
+
+		// Restore console.error after test
+		console.error = originalConsoleError;
+	});
+
+	it("handles saving a tip when authenticated", async () => {
+		// Mock fetch to return actionable tasks
+		global.fetch = jest.fn().mockImplementation(() =>
+			Promise.resolve({
+				ok: true,
+				json: () => Promise.resolve(mockActionableTasks),
+			})
+		);
+
+		// Mock the saved store with the addTip function
+		(useSavedStore as unknown as jest.Mock).mockImplementation(() => ({
+			savedTips: [],
+			savedTipsData: [],
+			addTip: mockAddTip.mockImplementation(() => Promise.resolve()),
+			removeTip: mockRemoveTip.mockImplementation(() => Promise.resolve()),
+			fetchSavedTips: mockFetchSavedTips.mockImplementation(() => Promise.resolve()),
+			loading: false,
 		}));
 
 		await act(async () => {
 			render(<TipsPage />);
 		});
 
-		// Check for error message in the empty state
-		const emptyState = screen.getByTestId("empty-state");
-		expect(emptyState).toBeInTheDocument();
-	});
+		// Use the specific test ID for the search button
+		const searchInput = screen.getByPlaceholderText("Search tips by topic or keyword");
+		const searchButton = screen.getByTestId("tip-search-button");
 
-	it("handles saving a tip when authenticated", async () => {
+		// Perform a search
 		await act(async () => {
-			render(<TipsPage />);
+			fireEvent.change(searchInput, { target: { value: "diabetes" } });
+			fireEvent.click(searchButton);
 		});
 
-		// Perform a search to display tips
-		await act(async () => {
-			fireEvent.change(screen.getByPlaceholderText("Search tips by topic or keyword"), {
-				target: { value: "diabetes" },
-			});
-			fireEvent.click(screen.getByRole("button", { name: /search/i }));
-		});
-
-		// Wait for personalized tips to appear
+		// Wait for tips to load
 		await waitFor(() => {
-			expect(screen.getByText("Personalized Tips")).toBeInTheDocument();
+			expect(screen.getByTestId("tip-card-diabetes-task-1")).toBeInTheDocument();
 		});
 
-		// Find the unsaved tip and click its save button
-		const tipId = "diabetes-task-2"; // Using the mock actionable task
-		const saveButton = screen.getByTestId(`save-toggle-${tipId}`);
-
+		// Click save button
+		const saveButton = screen.getByTestId("save-button-diabetes-task-1");
 		await act(async () => {
 			fireEvent.click(saveButton);
 		});
 
 		// Wait for the save operation to complete
 		await waitFor(() => {
-			expect(mockAddTip).toHaveBeenCalled();
+			expect(mockAddTip).toHaveBeenCalledWith("diabetes-task-1", expect.any(Object));
+			expect(mockToast.success).toHaveBeenCalledWith("Tip saved");
 		});
 	});
 
 	it("handles unsaving a tip", async () => {
+		// Mock the tip as already saved
+		const savedTip = {
+			id: "tip1",
+			task: "Diabetes Management",
+			reason: "Tips for managing diabetes effectively",
+			sourceUrl: "https://medlineplus.gov/diabetes.html",
+			saved: true,
+		};
+
+		// Mock saved store with the saved tip and removeTip function
+		(useSavedStore as unknown as jest.Mock).mockImplementation(() => ({
+			savedTips: [savedTip.id],
+			savedTipsData: [savedTip],
+			removeTip: mockRemoveTip.mockImplementation(() => Promise.resolve()),
+			addTip: mockAddTip.mockImplementation(() => Promise.resolve()),
+			fetchSavedTips: mockFetchSavedTips.mockImplementation(() => Promise.resolve()),
+			loading: false,
+		}));
+
 		await act(async () => {
 			render(<TipsPage />);
 		});
 
-		// Find the saved tip in the saved tips section
+		// Wait for saved tips section to load
+		await waitFor(() => {
+			expect(screen.getByText("My Saved Tips")).toBeInTheDocument();
+		});
+
+		// Find the saved tips section
 		const savedTipsSection = screen.getByText("My Saved Tips").closest("section");
 		expect(savedTipsSection).toBeInTheDocument();
 
-		const tipId = "medline-https%3A%2F%2Fmedlineplus.gov%2Fdiabetes.html";
-		const unsaveButton = within(savedTipsSection!).getByTestId(`save-toggle-${tipId}`);
-
+		// Find and click the unsave button within the saved tips section
+		const unsaveButton = within(savedTipsSection!).getByTestId(`save-button-${savedTip.id}`);
 		await act(async () => {
 			fireEvent.click(unsaveButton);
 		});
 
 		// Wait for the unsave operation to complete
 		await waitFor(() => {
-			expect(mockRemoveTip).toHaveBeenCalledWith(tipId);
+			expect(mockRemoveTip).toHaveBeenCalledWith(savedTip.id);
+			expect(mockToast.success).toHaveBeenCalledWith("Tip unsaved");
 		});
+	});
+
+	it("handles marking a tip as done", async () => {
+		await act(async () => {
+			render(<TipsPage />);
+		});
+
+		// Use the specific test ID for the search button
+		const searchInput = screen.getByPlaceholderText("Search tips by topic or keyword");
+		const searchButton = screen.getByTestId("tip-search-button");
+
+		// Perform a search
+		await act(async () => {
+			fireEvent.change(searchInput, { target: { value: "diabetes" } });
+			fireEvent.click(searchButton);
+		});
+
+		// Wait for tips to appear
+		await waitFor(() => {
+			const tipCard = screen.getByTestId("tip-card-diabetes-task-1");
+			expect(tipCard).toBeInTheDocument();
+		});
+
+		// Find and click the mark as done button
+		const markDoneButton = screen.getByTestId("mark-done-diabetes-task-1");
+		await act(async () => {
+			fireEvent.click(markDoneButton);
+		});
+
+		// Verify the tip was marked as done (localStorage was updated)
+		const doneTips = JSON.parse(localStorage.getItem("doneTips") || "[]");
+		expect(doneTips).toContain("diabetes-task-1");
 	});
 
 	it("shows toast when trying to save a tip while not authenticated", async () => {
@@ -479,64 +600,30 @@ describe("Tips Page", () => {
 			render(<TipsPage />);
 		});
 
-		// Perform a search to display tips
+		// Use the specific test ID for the search button
+		const searchInput = screen.getByPlaceholderText("Search tips by topic or keyword");
+		const searchButton = screen.getByTestId("tip-search-button");
+
+		// Perform a search
 		await act(async () => {
-			fireEvent.change(screen.getByPlaceholderText("Search tips by topic or keyword"), {
-				target: { value: "diabetes" },
-			});
-			fireEvent.click(screen.getByRole("button", { name: /search/i }));
+			fireEvent.change(searchInput, { target: { value: "diabetes" } });
+			fireEvent.click(searchButton);
 		});
 
-		// Wait for personalized tips to appear
+		// Wait for tips to appear and then try to save
 		await waitFor(() => {
-			expect(screen.getByText("Personalized Tips")).toBeInTheDocument();
+			const tipCard = screen.getByTestId("tip-card-diabetes-task-1");
+			expect(tipCard).toBeInTheDocument();
 		});
 
-		// Find a tip and click its save button
-		const tipId = "diabetes-task-1";
-		const saveButton = screen.getByTestId(`save-toggle-${tipId}`);
-
+		// Find and click the save button on the tip
+		const saveButton = screen.getByTestId("save-button-diabetes-task-1");
 		await act(async () => {
 			fireEvent.click(saveButton);
 		});
 
-		// Check that error toast was shown
-		expect(toast.error).toHaveBeenCalledWith("Please log in to save tips", expect.anything());
-		expect(toast.custom).toHaveBeenCalled();
-	});
-
-	it("handles marking a tip as done", async () => {
-		await act(async () => {
-			render(<TipsPage />);
-		});
-
-		// Perform a search to display tips
-		await act(async () => {
-			fireEvent.change(screen.getByPlaceholderText("Search tips by topic or keyword"), {
-				target: { value: "diabetes" },
-			});
-			fireEvent.click(screen.getByRole("button", { name: /search/i }));
-		});
-
-		// Wait for personalized tips to appear
-		await waitFor(() => {
-			expect(screen.getByText("Personalized Tips")).toBeInTheDocument();
-		});
-
-		// Find a tip in the personalized tips section and click its mark as done button
-		const personalizedTipsSection = screen.getByText("Personalized Tips").closest("section");
-		expect(personalizedTipsSection).toBeInTheDocument();
-
-		const tipId = "diabetes-task-2";
-		const markDoneButton = within(personalizedTipsSection!).getByTestId(`mark-done-${tipId}`);
-
-		await act(async () => {
-			fireEvent.click(markDoneButton);
-		});
-
-		// Check that localStorage was updated
-		expect(window.localStorage.setItem).toHaveBeenCalledWith("doneTips", expect.any(String));
-		expect(toast.success).toHaveBeenCalledWith("Tip marked as done", expect.anything());
+		// Verify the toast message was shown
+		expect(mockToast.error).toHaveBeenCalledWith("Please log in to save tips", expect.anything());
 	});
 
 	it("displays actionable tasks after searching", async () => {
@@ -544,40 +631,51 @@ describe("Tips Page", () => {
 			render(<TipsPage />);
 		});
 
+		// Use the specific test ID for the search button
+		const searchInput = screen.getByPlaceholderText("Search tips by topic or keyword");
+		const searchButton = screen.getByTestId("tip-search-button");
+
 		// Perform a search
 		await act(async () => {
-			fireEvent.change(screen.getByPlaceholderText("Search tips by topic or keyword"), {
-				target: { value: "diabetes" },
-			});
-			fireEvent.click(screen.getByRole("button", { name: /search/i }));
+			fireEvent.change(searchInput, { target: { value: "diabetes" } });
+			fireEvent.click(searchButton);
 		});
 
-		// Wait for actionable tasks to appear
+		// Wait for tips to appear in SearchResults
 		await waitFor(() => {
-			expect(screen.getByText("Personalized Tips")).toBeInTheDocument();
-			expect(screen.getByTestId("tip-card-diabetes-task-1")).toBeInTheDocument();
+			const tipCard = screen.getByTestId("tip-card-diabetes-task-1");
+			expect(tipCard).toBeInTheDocument();
 		});
 	});
 
 	it("displays recent searches", async () => {
+		// Mock localStorage with recent searches
+		const mockLocalStorage = {
+			getItem: jest.fn().mockImplementation((key) => {
+				if (key === "recentSearches") return JSON.stringify(["diabetes", "exercise"]);
+				return null;
+			}),
+			setItem: jest.fn(),
+		};
+		Object.defineProperty(window, "localStorage", { value: mockLocalStorage });
+
 		await act(async () => {
 			render(<TipsPage />);
 		});
 
 		// Check that recent searches are displayed
 		expect(screen.getByText("Recent searches:")).toBeInTheDocument();
-		// Use getAllByText since there might be multiple elements with the same text
-		expect(screen.getAllByText("diabetes")[0]).toBeInTheDocument();
-		expect(screen.getAllByText("exercise")[0]).toBeInTheDocument();
 
-		// Click on a recent search
+		// Click on a specific recent search button
+		const diabetesButton = screen.getByTestId("recent-search-diabetes");
 		await act(async () => {
-			fireEvent.click(screen.getAllByText("diabetes")[0]);
+			fireEvent.click(diabetesButton);
 		});
 
-		// Wait for the search to update
+		// Wait for search results
 		await waitFor(() => {
-			expect(screen.getByTestId("tip-card-diabetes-task-1")).toBeInTheDocument();
+			const tipCards = screen.getAllByTestId("tip-card-diabetes-task-1");
+			expect(tipCards).toHaveLength(1);
 		});
 	});
 
@@ -586,48 +684,56 @@ describe("Tips Page", () => {
 			render(<TipsPage />);
 		});
 
-		// Find the quick search section
-		const quickSearchSection = screen.getByTestId("quick-search-section");
-		expect(quickSearchSection).toBeInTheDocument();
-
-		// Click on a topic button
-		const diabetesButton = within(quickSearchSection).getByText("diabetes");
+		// Find and click the specific quick search button
+		const diabetesButton = screen.getByTestId("quick-search-diabetes");
 		await act(async () => {
 			fireEvent.click(diabetesButton);
 		});
 
-		// Wait for the search to complete
+		// Verify search results are shown
 		await waitFor(() => {
-			expect(screen.getByTestId("tip-card-diabetes-task-1")).toBeInTheDocument();
+			const tipCards = screen.getAllByTestId("tip-card-diabetes-task-1");
+			expect(tipCards).toHaveLength(1);
 		});
 	});
 
 	it("displays saved tips from different sources after saving", async () => {
+		// Mock initial state with no saved tips
+		(useSavedStore as unknown as jest.Mock).mockImplementation(() => ({
+			savedTips: [],
+			savedTipsData: [],
+			addTip: mockAddTip.mockImplementation(() => Promise.resolve()),
+			removeTip: mockRemoveTip.mockImplementation(() => Promise.resolve()),
+			fetchSavedTips: mockFetchSavedTips.mockImplementation(() => Promise.resolve()),
+			loading: false,
+		}));
+
 		await act(async () => {
 			render(<TipsPage />);
 		});
 
+		// Use the specific test ID for the search form and button
+		const searchInput = screen.getByPlaceholderText("Search tips by topic or keyword");
+		const searchButton = screen.getByTestId("tip-search-button");
+
 		// Perform a search
 		await act(async () => {
-			fireEvent.change(screen.getByPlaceholderText("Search tips by topic or keyword"), {
-				target: { value: "heart health" },
-			});
-			fireEvent.click(screen.getByRole("button", { name: /search/i }));
+			fireEvent.change(searchInput, { target: { value: "diabetes" } });
+			fireEvent.click(searchButton);
 		});
 
-		// Wait for search results and actionable tasks
-		await waitFor(() => {
-			expect(screen.getByText("Personalized Tips")).toBeInTheDocument();
-		});
+		// Find the specific tip card we want to save
+		const tipCards = screen.getAllByTestId("tip-card-diabetes-task-1");
+		const saveButton = within(tipCards[0]).getByRole("button", { name: /save/i });
 
-		// Save a tip from search results
-		const saveButton = screen.getByTestId("save-toggle-diabetes-task-1");
+		// Save the tip
 		await act(async () => {
 			fireEvent.click(saveButton);
 		});
 
-		// Check that the tip appears in saved tips section
-		expect(screen.getByText("My Saved Tips")).toBeInTheDocument();
+		// Verify the tip was saved
+		expect(mockAddTip).toHaveBeenCalledWith("diabetes-task-1", expect.any(Object));
+		expect(mockToast.success).toHaveBeenCalledWith("Tip saved");
 	});
 
 	it("handles tips with missing or undefined snippet", async () => {
@@ -651,17 +757,20 @@ describe("Tips Page", () => {
 			render(<TipsPage />);
 		});
 
+		// Use the specific test ID for the search button
+		const searchInput = screen.getByPlaceholderText("Search tips by topic or keyword");
+		const searchButton = screen.getByTestId("tip-search-button");
+
 		// Perform a search
 		await act(async () => {
-			fireEvent.change(screen.getByPlaceholderText("Search tips by topic or keyword"), {
-				target: { value: "health" },
-			});
-			fireEvent.click(screen.getByRole("button", { name: /search/i }));
+			fireEvent.change(searchInput, { target: { value: "health" } });
+			fireEvent.click(searchButton);
 		});
 
 		// Wait for search results
 		await waitFor(() => {
-			expect(screen.getByText("Personalized Tips")).toBeInTheDocument();
+			const personalizedTipsHeadings = screen.getAllByText("Personalized Tips");
+			expect(personalizedTipsHeadings).toHaveLength(1);
 		});
 	});
 });

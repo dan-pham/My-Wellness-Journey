@@ -6,7 +6,7 @@ import { useSavedStore } from "@/stores/savedStore";
 import { useAuthStore } from "@/stores/authStore";
 import toast from "react-hot-toast";
 
-// Create mock functions outside so we can access them in tests
+// Create mock functions
 const mockBack = jest.fn();
 const mockPush = jest.fn();
 
@@ -67,7 +67,7 @@ describe("TipDetailPage", () => {
 			})
 		);
 
-		// Setup store mocks with type assertions to fix TypeScript errors
+		// Setup store mocks with type assertions
 		(useSavedStore as unknown as jest.Mock).mockReturnValue({
 			savedTips: [],
 			addTip: jest.fn(),
@@ -81,19 +81,21 @@ describe("TipDetailPage", () => {
 
 	it("renders loading state initially", async () => {
 		// Mock a delayed API response to ensure loading state is visible
-		global.fetch = jest.fn().mockImplementation(() =>
-			new Promise(resolve => {
-				setTimeout(() => {
-					resolve({
-						ok: true,
-						json: () => Promise.resolve({
-							title: mockTip.task,
-							content: mockTip.reason,
-							url: mockTip.sourceUrl,
-						}),
-					});
-				}, 100);
-			})
+		global.fetch = jest.fn().mockImplementation(
+			() =>
+				new Promise((resolve) => {
+					setTimeout(() => {
+						resolve({
+							ok: true,
+							json: () =>
+								Promise.resolve({
+									title: mockTip.task,
+									content: mockTip.reason,
+									url: mockTip.sourceUrl,
+								}),
+						});
+					}, 100);
+				})
 		);
 
 		await act(async () => {
@@ -111,7 +113,7 @@ describe("TipDetailPage", () => {
 
 		await waitFor(() => {
 			// Check for the task text in the heading
-			const headingElement = screen.getByRole('heading', { level: 1 });
+			const headingElement = screen.getByRole("heading", { level: 1 });
 			expect(headingElement).toHaveTextContent(mockTip.task);
 		});
 
@@ -191,9 +193,23 @@ describe("TipDetailPage", () => {
 			expect(screen.getByLabelText(/save tip/i)).toBeInTheDocument();
 		});
 
-		fireEvent.click(screen.getByLabelText(/save tip/i));
-		expect(toast.error).toHaveBeenCalledWith("Please log in to save tips", expect.anything());
-		expect(toast.custom).toHaveBeenCalled();
+		// Click the save button
+		await act(async () => {
+			fireEvent.click(screen.getByLabelText(/save tip/i));
+		});
+
+		// Verify toast error message was called with correct arguments
+		expect(toast.error).toHaveBeenCalledWith(
+			"Please log in to save tips",
+			expect.objectContaining({
+				duration: 3000,
+				id: "login-required",
+				icon: "🔒",
+			})
+		);
+
+		// Verify router.push was called with '/login'
+		expect(mockPush).toHaveBeenCalledWith("/login");
 	});
 
 	it("handles unsave button click", async () => {

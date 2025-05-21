@@ -5,6 +5,6 @@ export interface Tip {
 	sourceUrl: string;
 	done?: boolean;
 	saved?: boolean;
-	dateGenerated?: String;
+	dateGenerated?: string;
 	tag?: string[];
 }
