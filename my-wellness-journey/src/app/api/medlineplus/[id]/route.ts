@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { MedlinePlusService } from "@/lib/api/medlineplusService";
+import { fetchMedlinePlusById } from "@/lib/api/medlineplus";
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
 	try {
@@ -9,7 +9,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 			return NextResponse.json({ error: "Resource ID is required" }, { status: 400 });
 		}
 
-		const data = await MedlinePlusService.fetchById(id);
+		const data = await fetchMedlinePlusById(id);
 		return NextResponse.json(data);
 	} catch (error) {
 		console.error("MedlinePlus API proxy error:", error);
