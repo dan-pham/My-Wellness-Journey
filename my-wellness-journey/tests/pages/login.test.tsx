@@ -200,6 +200,10 @@ describe("Login Page", () => {
 	});
 
 	it("handles login error", async () => {
+		// Store the original console.error
+		const originalConsoleError = console.error;
+		console.error = jest.fn();
+
 		const errorMessage = "Invalid credentials";
 
 		(global.fetch as jest.Mock).mockResolvedValueOnce({
@@ -216,6 +220,9 @@ describe("Login Page", () => {
 
 		// Check that no navigation occurred
 		expect(mockPush).not.toHaveBeenCalled();
+
+		// Restore console.error after test
+		console.error = originalConsoleError;
 	});
 
 	it("stores token in sessionStorage when remember me is not checked", async () => {

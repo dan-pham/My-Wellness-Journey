@@ -264,6 +264,10 @@ describe("Register Page", () => {
 	});
 
 	it("handles registration error", async () => {
+		// Store the original console.error
+		const originalConsoleError = console.error;
+		console.error = jest.fn();
+
 		const errorMessage = "Email already in use";
 
 		// Mock register response with error
@@ -292,6 +296,9 @@ describe("Register Page", () => {
 
 		// Check that no navigation occurred
 		expect(mockPush).not.toHaveBeenCalled();
+
+		// Restore console.error after test
+		console.error = originalConsoleError;
 	});
 
 	it("handles login error after successful registration", async () => {
