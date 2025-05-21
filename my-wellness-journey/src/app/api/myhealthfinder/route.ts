@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { MyHealthFinderService } from "@/lib/api/myhealthfinderService";
+import { MyHealthFinderService } from "@/lib/api/myhealthfinder";
 
 export async function GET(req: NextRequest) {
 	try {
