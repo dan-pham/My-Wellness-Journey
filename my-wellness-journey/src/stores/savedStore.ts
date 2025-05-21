@@ -141,10 +141,7 @@ export const useSavedStore = create<SavedState>()(
 			},
 
 			addTip: async (tipId, tipData) => {
-				// Skip duplicate check or silently handle already-saved tips
-				// This allows re-saving a tip that might appear unsaved in the UI
 				if (get().savedTips.includes(tipId)) {
-					// Return silently instead of showing an error
 					return;
 				}
 
@@ -248,10 +245,7 @@ export const useSavedStore = create<SavedState>()(
 			},
 
 			addResource: async (resourceId, resourceData) => {
-				// Skip duplicate check or silently handle already-saved resources
-				// This allows re-saving a resource that might appear unsaved in the UI
 				if (get().savedResources.includes(resourceId)) {
-					// Return silently instead of showing an error
 					return;
 				}
 
