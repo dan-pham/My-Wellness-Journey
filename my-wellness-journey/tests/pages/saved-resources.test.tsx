@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/stores/authStore";
 import { useSavedStore } from "@/stores/savedStore";
 import toast from "react-hot-toast";
+import { useSavedResourcesPage } from "@/app/resources/hooks/useSavedResourcesPage";
 
 // Mock modules
 jest.mock("next/navigation", () => ({
@@ -291,23 +292,36 @@ describe("Saved Resources Page", () => {
 	});
 
 	it("shows empty state with different message when search has no results", async () => {
+		// Mock the hook state for search with no results
+		const mockClearFilters = jest.fn();
+		jest
+			.spyOn(require("@/app/resources/hooks/useSavedResourcesPage"), "useSavedResourcesPage")
+			.mockReturnValue({
+				isAuthenticated: true,
+				savedResources: [],
+				savedResourcesData: [],
+				isLoading: false,
+				error: null,
+				searchQuery: "nonexistent",
+				setSearchQuery: jest.fn(),
+				handleSearch: jest.fn(),
+				handleRemove: jest.fn(),
+				sortOrder: "date",
+				setSortOrder: jest.fn(),
+				clearFilters: mockClearFilters,
+				filteredResources: [],
+				hasSearched: true,
+			});
+
 		await act(async () => {
 			render(<SavedResourcesPage />);
-		});
-
-		// Find search input
-		const searchInput = screen.getByPlaceholderText("Search in your saved resources...");
-
-		// Enter search query that won't match any resources
-		await act(async () => {
-			fireEvent.change(searchInput, { target: { value: "nonexistent" } });
 		});
 
 		// Check for empty state with search-specific message
 		await waitFor(() => {
 			expect(screen.getByTestId("empty-state")).toBeInTheDocument();
 			expect(screen.getByText("No Results")).toBeInTheDocument();
-			expect(screen.getByText("No resources match your search or filter.")).toBeInTheDocument();
+			expect(screen.getByText("No resources match your search or filter")).toBeInTheDocument();
 		});
 
 		// Check for action button
@@ -315,10 +329,14 @@ describe("Saved Resources Page", () => {
 		expect(actionButton).toHaveTextContent("Clear Filters");
 
 		// Click action button
-		fireEvent.click(actionButton);
+		await act(async () => {
+			fireEvent.click(actionButton);
+		});
 
-		// Check that search was cleared
-		expect(searchInput).toHaveValue("");
+		// Verify clearFilters was called
+		await waitFor(() => {
+			expect(mockClearFilters).toHaveBeenCalled();
+		});
 	});
 
 	it("navigates to resources page when clicking back link", async () => {

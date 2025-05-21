@@ -5,3 +5,7 @@ export interface Resource {
 	imageUrl: string;
 	sourceUrl: string;
 }
+
+export interface ResourceDetail extends Resource {
+	content: string;
+}

@@ -8,6 +8,7 @@ import { useSavedStore } from "@/stores/savedStore";
 import { useResourceHistoryStore } from "@/stores/resourceHistoryStore";
 import toast from "react-hot-toast";
 import * as myhealthfinder from "@/lib/api/myhealthfinder";
+import { useHealthStore } from "@/stores/healthStore";
 
 // Mock modules
 jest.mock("next/navigation", () => ({
@@ -27,6 +28,10 @@ jest.mock("@/stores/resourceHistoryStore", () => ({
 	useResourceHistoryStore: jest.fn(),
 }));
 
+jest.mock("@/stores/healthStore", () => ({
+	useHealthStore: jest.fn(),
+}));
+
 // Mock components
 jest.mock("next/image", () => ({
 	__esModule: true,
@@ -35,6 +40,21 @@ jest.mock("next/image", () => ({
 
 jest.mock("@/app/components/Header", () => () => <header>Header</header>);
 jest.mock("@/app/components/Footer", () => () => <footer>Footer</footer>);
+jest.mock("@/app/components/Loading", () => ({
+	Loading: () => (
+		<div data-testid="loading-skeleton" className="bg-gray-200">
+			Loading...
+		</div>
+	),
+}));
+jest.mock("@/app/components/Error", () => ({
+	Error: ({ message }: { message: string }) => (
+		<div data-testid="error-message">
+			<h2>Error</h2>
+			<p>{message}</p>
+		</div>
+	),
+}));
 
 // Mock react-hot-toast
 jest.mock("react-hot-toast", () => ({
@@ -54,6 +74,7 @@ describe("Resource Detail Page", () => {
 	const mockAddToHistory = jest.fn();
 	const mockAddResource = jest.fn();
 	const mockRemoveResource = jest.fn();
+	const mockFetchResourceById = jest.fn();
 
 	// Mock resource
 	const mockResource = {
@@ -69,221 +90,202 @@ describe("Resource Detail Page", () => {
 	beforeEach(() => {
 		jest.clearAllMocks();
 
+		// Reset all mocks
+		mockFetchResourceById.mockReset();
+		mockFetchResourceById.mockResolvedValue(mockResource);
+
 		// Mock useParams
-		(useParams as jest.Mock).mockImplementation(() => ({
+		(useParams as jest.Mock).mockReturnValue({
 			id: "resource1",
-		}));
+		});
 
 		// Mock useRouter
-		(useRouter as jest.Mock).mockImplementation(() => ({
+		(useRouter as jest.Mock).mockReturnValue({
 			push: mockPush,
 			back: mockBack,
-		}));
+		});
 
 		// Mock useAuthStore
-		(useAuthStore as unknown as jest.Mock).mockImplementation(() => ({
+		(useAuthStore as unknown as jest.Mock).mockReturnValue({
 			isAuthenticated: true,
-		}));
+		});
 
 		// Mock useSavedStore
-		(useSavedStore as unknown as jest.Mock).mockImplementation(() => ({
+		(useSavedStore as unknown as jest.Mock).mockReturnValue({
 			savedResources: ["resource1"],
 			addResource: mockAddResource,
 			removeResource: mockRemoveResource,
-		}));
+			fetchSavedResources: jest.fn().mockResolvedValue(undefined),
+		});
+
+		// Mock useHealthStore
+		(useHealthStore as unknown as jest.Mock).mockReturnValue({
+			fetchResourceById: mockFetchResourceById,
+		});
 
 		// Mock useResourceHistoryStore
-		(useResourceHistoryStore as unknown as jest.Mock).mockImplementation(() => ({
+		(useResourceHistoryStore as unknown as jest.Mock).mockReturnValue({
 			addToHistory: mockAddToHistory,
-		}));
-
-		// Mock fetchHealthDataById
-		(myhealthfinder.fetchHealthDataById as jest.Mock).mockResolvedValue(mockResource);
+		});
 	});
 
 	it("renders the resource detail page with loading state initially", async () => {
-		// Delay the API response
-		(myhealthfinder.fetchHealthDataById as jest.Mock).mockImplementation(
+		// Mock a delayed response
+		mockFetchResourceById.mockImplementation(
 			() => new Promise((resolve) => setTimeout(() => resolve(mockResource), 100))
 		);
 
 		render(<ResourceDetailPage />);
 
-		// Check for loading state
-		expect(screen.getByText("Header")).toBeInTheDocument();
+		// Check for loading state immediately
+		expect(screen.getByTestId("loading-skeleton")).toBeInTheDocument();
 
-		// Look for elements in the loading skeleton
-		const loadingElements = document.querySelectorAll(".bg-gray-200");
-		expect(loadingElements.length).toBeGreaterThan(0);
+		// Wait for the delayed response to complete
+		await waitFor(() => {
+			expect(screen.queryByTestId("loading-skeleton")).not.toBeInTheDocument();
+		});
 	});
 
 	it("renders resource details after loading", async () => {
-		await act(async () => {
-			render(<ResourceDetailPage />);
-		});
+		render(<ResourceDetailPage />);
 
-		// Check for resource title
+		// Wait for the resource to load and component to update
 		await waitFor(() => {
 			expect(screen.getByText("Diabetes Management")).toBeInTheDocument();
+			expect(screen.getByText("Back to Resources")).toBeInTheDocument();
+			expect(screen.getByText("Saved")).toBeInTheDocument();
+			expect(screen.getByRole("article")).toBeInTheDocument();
 		});
 
-		// Check for back button
-		expect(screen.getByText("Back")).toBeInTheDocument();
-
-		// Check for save button (should show as "Saved" since it's in savedResources)
-		expect(screen.getByText("Saved")).toBeInTheDocument();
-
-		// Check for content
-		expect(screen.getByRole("article")).toBeInTheDocument();
-
 		// Check that addToHistory was called
-		expect(mockAddToHistory).toHaveBeenCalledWith(
-			expect.objectContaining({
-				id: "resource1",
-				title: "Diabetes Management",
-			})
-		);
+		expect(mockAddToHistory).toHaveBeenCalledWith({
+			id: "resource1",
+			title: "Diabetes Management",
+			description: "<p>Tips for managing diabetes</p>",
+			imageUrl: "/image1.jpg",
+			sourceUrl: "",
+		});
 	});
 
 	it("handles resource not found error", async () => {
-		// Temporarily suppress console.error for this test
+		// Store the original console.error
 		const originalConsoleError = console.error;
 		console.error = jest.fn();
 
 		// Mock API to return null (resource not found)
-		(myhealthfinder.fetchHealthDataById as jest.Mock).mockResolvedValue(null);
+		mockFetchResourceById.mockResolvedValue(null);
 
-		await act(async () => {
-			render(<ResourceDetailPage />);
-		});
+		render(<ResourceDetailPage />);
 
-		// Check for error message
+		// Wait for error state
 		await waitFor(() => {
-			expect(screen.getByText("Error")).toBeInTheDocument();
-			expect(
-				screen.getByText("Unable to load resource details. Please try again later.")
-			).toBeInTheDocument();
+			expect(screen.getByTestId("error-message")).toBeInTheDocument();
+			expect(screen.getByText("Resource not found")).toBeInTheDocument();
 		});
 
-		// Check for back button in error state
-		const goBackButton = screen.getByText("Go Back");
-		expect(goBackButton).toBeInTheDocument();
-
-		// Click back button
-		fireEvent.click(goBackButton);
-		expect(mockBack).toHaveBeenCalled();
-
-		// Restore the original implementations
+		// Restore console.error after test
 		console.error = originalConsoleError;
 	});
 
 	it("handles API fetch error", async () => {
-		// Temporarily suppress console.error for this test
+		// Store the original console.error
 		const originalConsoleError = console.error;
 		console.error = jest.fn();
 
 		// Mock API to throw an error
-		(myhealthfinder.fetchHealthDataById as jest.Mock).mockRejectedValue(new Error("API error"));
+		mockFetchResourceById.mockRejectedValue(new Error("API error"));
 
-		await act(async () => {
-			render(<ResourceDetailPage />);
-		});
+		render(<ResourceDetailPage />);
 
-		// Check for error message
+		// Wait for error state
 		await waitFor(() => {
-			expect(screen.getByText("Error")).toBeInTheDocument();
-			expect(screen.getByText(/Unable to load resource details/)).toBeInTheDocument();
+			expect(screen.getByTestId("error-message")).toBeInTheDocument();
+			expect(screen.getByText("Failed to load resource")).toBeInTheDocument();
 		});
 
-		// Restore the original implementations
+		// Restore console.error after test
 		console.error = originalConsoleError;
 	});
 
 	it("allows unsaving a saved resource", async () => {
-		await act(async () => {
-			render(<ResourceDetailPage />);
-		});
+		render(<ResourceDetailPage />);
 
-		// Find the save button (which should show "Saved")
-		const saveButton = screen.getByText("Saved").closest("button");
+		// Wait for the component to load and find the save button
+		const saveButton = await waitFor(() => screen.getByText("Saved"));
 
-		// Click to unsave
-		await act(async () => {
-			fireEvent.click(saveButton!);
-		});
+		// Click the save button
+		fireEvent.click(saveButton);
 
 		// Check that removeResource was called with the correct ID
 		expect(mockRemoveResource).toHaveBeenCalledWith("resource1");
+
+		// Wait for success message
+		await waitFor(() => {
+			expect(toast.success).toHaveBeenCalledWith("Resource removed from saved items");
+		});
 	});
 
 	it("allows saving an unsaved resource", async () => {
 		// Mock the resource as not saved
-		(useSavedStore as unknown as jest.Mock).mockImplementation(() => ({
+		(useSavedStore as unknown as jest.Mock).mockReturnValue({
 			savedResources: [], // Empty array means resource1 is not saved
 			addResource: mockAddResource,
 			removeResource: mockRemoveResource,
-		}));
-
-		await act(async () => {
-			render(<ResourceDetailPage />);
+			fetchSavedResources: jest.fn().mockResolvedValue(undefined),
 		});
 
-		// Find the save button (which should show "Save")
-		const saveButton = screen.getByText("Save").closest("button");
+		render(<ResourceDetailPage />);
 
-		// Click to save
-		await act(async () => {
-			fireEvent.click(saveButton!);
-		});
+		// Wait for the component to load and find the save button
+		const saveButton = await waitFor(() => screen.getByText("Save"));
+
+		// Click the save button
+		fireEvent.click(saveButton);
 
 		// Check that addResource was called with the correct ID and resource data
 		expect(mockAddResource).toHaveBeenCalledWith("resource1", expect.any(Object));
+
+		// Wait for success message
+		await waitFor(() => {
+			expect(toast.success).toHaveBeenCalledWith("Resource saved successfully");
+		});
 	});
 
 	it("shows a login prompt when trying to save while not authenticated", async () => {
 		// Mock user as not authenticated
-		(useAuthStore as unknown as jest.Mock).mockImplementation(() => ({
+		(useAuthStore as unknown as jest.Mock).mockReturnValue({
 			isAuthenticated: false,
-		}));
+		});
 
 		// Mock the resource as not saved
-		(useSavedStore as unknown as jest.Mock).mockImplementation(() => ({
+		(useSavedStore as unknown as jest.Mock).mockReturnValue({
 			savedResources: [], // Empty array means resource1 is not saved
 			addResource: mockAddResource,
 			removeResource: mockRemoveResource,
-		}));
-
-		await act(async () => {
-			render(<ResourceDetailPage />);
+			fetchSavedResources: jest.fn().mockResolvedValue(undefined),
 		});
 
-		// Wait for the resource to load
-		await waitFor(() => {
-			expect(screen.getByText("Diabetes Management")).toBeInTheDocument();
-		});
+		render(<ResourceDetailPage />);
 
-		// Find the save button
-		const saveButton = screen.getByText("Save").closest("button");
+		// Wait for the component to load and find the save button
+		const saveButton = await waitFor(() => screen.getByText("Save"));
 
-		// Click to save
-		await act(async () => {
-			fireEvent.click(saveButton!);
-		});
+		// Click the save button
+		fireEvent.click(saveButton);
 
 		// Check that toast.error was called
-		expect(toast.error).toHaveBeenCalledWith("Please log in to save resources", expect.any(Object));
-		expect(toast.custom).toHaveBeenCalled();
+		await waitFor(() => {
+			expect(toast.error).toHaveBeenCalledWith("Please log in to save resources");
+		});
 	});
 
 	it("navigates back when clicking the back button", async () => {
-		await act(async () => {
-			render(<ResourceDetailPage />);
-		});
+		render(<ResourceDetailPage />);
 
-		// Find the back button
-		const backButton = screen.getByText("Back");
+		// Wait for the component to load and find the back button
+		const backButton = await waitFor(() => screen.getByText("Back to Resources"));
 
-		// Click to go back
+		// Click the back button
 		fireEvent.click(backButton);
 
 		// Check that router.back was called

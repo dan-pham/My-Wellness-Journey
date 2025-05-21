@@ -1,6 +1,7 @@
 import { create } from "zustand";
-import { MyHealthFinder, fetchHealthData } from "../lib/api/myhealthfinder";
+import { MyHealthFinder, fetchHealthData, fetchHealthDataById } from "../lib/api/myhealthfinder";
 import { MedlinePlusSearchResult } from "../lib/api/medlineplus";
+import { Resource, ResourceDetail } from "@/types/resource";
 
 interface TipsSlice {
 	tips: MedlinePlusSearchResult[];
@@ -14,6 +15,7 @@ interface ResourcesSlice {
 	resourcesLoading: boolean;
 	resourcesError: string | null;
 	fetchResources: (query: string, maxResults?: number) => Promise<void>;
+	fetchResourceById: (id: string) => Promise<ResourceDetail>;
 }
 
 type HealthStore = TipsSlice & ResourcesSlice;
@@ -48,6 +50,25 @@ export const useHealthStore = create<HealthStore>((set) => ({
 			set({ resources: response.healthData, resourcesLoading: false });
 		} catch (error) {
 			set({ resourcesError: "Failed to fetch resources", resourcesLoading: false });
+		}
+	},
+	fetchResourceById: async (id: string) => {
+		try {
+			const resource = await fetchHealthDataById(id);
+			if (!resource) {
+				throw new Error("Resource not found");
+			}
+			return {
+				id: resource.id,
+				title: resource.title,
+				description: resource.content.substring(0, 200) + "...", // Use first 200 chars of content as description
+				content: resource.content,
+				imageUrl:
+					resource.imageUrl || "https://images.unsplash.com/photo-1505751172876-fa1923c5c528",
+				sourceUrl: resource.sourceUrl || "",
+			};
+		} catch (error) {
+			throw new Error("Failed to fetch resource");
 		}
 	},
 }));
