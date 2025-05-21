@@ -3,7 +3,10 @@ import { GET, POST, DELETE } from "@/app/api/user/saved-tips/route";
 import Profile from "@/models/profile";
 import mongoose from "mongoose";
 import { authenticate as originalAuthenticate } from "@/middleware/auth";
-import { validateAndSanitizeInput as originalValidateInput, ValidationSchema } from "@/middleware/validation";
+import {
+	validateAndSanitizeInput as originalValidateInput,
+	ValidationSchema,
+} from "@/middleware/validation";
 
 // Define the type for the authenticate function
 type AuthenticateFunction = typeof originalAuthenticate;
@@ -251,10 +254,7 @@ describe("User API - Saved Tips", () => {
 			// Mock validation to return a 400 response
 			validateAndSanitizeInput.mockImplementation(
 				(schema: ValidationSchema) => async (req: NextRequest) =>
-					NextResponse.json(
-						{ errors: { tipId: ["Tip ID is required"] } },
-						{ status: 400 }
-					)
+					NextResponse.json({ errors: { tipId: ["Tip ID is required"] } }, { status: 400 })
 			);
 
 			const req = createRequest({});
@@ -358,7 +358,7 @@ describe("User API - Saved Tips", () => {
 		it("should return 400 when tipId is not provided", async () => {
 			const req = createRequest({}, {});
 
-			const response = await DELETE(req);
+			const response = await DELETE(req, { params: {} });
 			const data = await response.json();
 
 			expect(response.status).toBe(400);
@@ -373,7 +373,7 @@ describe("User API - Saved Tips", () => {
 
 			const req = createRequest({}, { tipId: tipId });
 
-			const response = await DELETE(req);
+			const response = await DELETE(req, { params: {} });
 			const data = await response.json();
 
 			expect(response.status).toBe(404);
@@ -384,7 +384,7 @@ describe("User API - Saved Tips", () => {
 		it("should return 404 when tip is not found in saved tips", async () => {
 			const req = createRequest({}, { tipId: "non-existent-tip-id" });
 
-			const response = await DELETE(req);
+			const response = await DELETE(req, { params: {} });
 			const data = await response.json();
 
 			expect(response.status).toBe(404);
@@ -405,7 +405,7 @@ describe("User API - Saved Tips", () => {
 
 			const req = createRequest({}, { tipId: tipId });
 
-			const response = await DELETE(req);
+			const response = await DELETE(req, { params: {} });
 			const data = await response.json();
 
 			expect(response.status).toBe(500);

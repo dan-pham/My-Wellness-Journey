@@ -223,9 +223,6 @@ describe("tipOfTheDayStore", () => {
 
 	describe("resetDismissState", () => {
 		it("should reset dismissed state correctly based on date comparison", () => {
-			// Instead of mocking Date directly, let's monkey-patch the resetDismissState function
-			// to use our controlled date values
-
 			const originalResetDismissState = useTipOfDayStore.getState().resetDismissState;
 
 			// Create a test implementation that will simulate different day comparison
@@ -320,7 +317,6 @@ describe("tipOfTheDayStore", () => {
 			expect(state.dismissed).toBe(true);
 
 			// Verify persist name matches what's in the implementation
-			// This is a light check instead of directly accessing the persist object
 			const storeName = "tip-of-day-storage";
 			const serializedState = localStorage.getItem(storeName);
 			expect(serializedState).toBeTruthy();

@@ -8,7 +8,7 @@ interface ProfileData {
 	firstName: string;
 	lastName: string;
 	dateOfBirth?: string;
-	gender?: "male" | "female" | "non-binary" | "prefer-not-to-say" | "";
+	gender?: string;
 }
 
 interface FormFieldProps {

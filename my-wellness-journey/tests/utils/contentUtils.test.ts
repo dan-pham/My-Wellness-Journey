@@ -53,7 +53,7 @@ describe("Content Utilities", () => {
                 </ul>
               </div>
             `;
-			// Instead of checking for exact string, verify key aspects that we care about
+
 			const result = stripHtmlForPreview(html);
 			expect(result).toContain("Main Title");
 			expect(result).toContain("This is a bold statement with a link");

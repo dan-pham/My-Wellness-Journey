@@ -109,7 +109,6 @@ describe("Header Component", () => {
 		expect(screen.getByText("Get started")).toBeInTheDocument();
 	});
 
-	// Add more tests for authenticated state by mocking the useAuthStore
 	it('does not render the "Get started" button when authenticated', () => {
 		// Override the mock for this specific test
 		jest.spyOn(require("@/stores/authStore"), "useAuthStore").mockImplementation(() => ({
