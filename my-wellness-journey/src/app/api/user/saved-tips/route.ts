@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticate } from "@/middleware/auth";
 import { findProfileOrFail } from "@/lib/api/profileService";
-import { ensureConnection, closeConnection } from "@/lib/db/connection";
+import { ensureConnection } from "@/lib/db/connection";
 import { validateAndSanitizeInput } from "@/middleware/validation";
 import { apiRateLimiter } from "@/middleware/rateLimit";
 import { withApiMiddleware } from "@/lib/apiHandler";
@@ -44,8 +44,6 @@ async function getSavedTipsHandler(
 	} catch (error) {
 		console.error("Get saved tips error:", error);
 		return NextResponse.json({ error: "Failed to get saved tips" }, { status: 500 });
-	} finally {
-		await closeConnection();
 	}
 }
 
@@ -104,8 +102,6 @@ async function saveTipHandler(
 	} catch (error) {
 		console.error("Save tip error:", error);
 		return NextResponse.json({ error: "Failed to save tip" }, { status: 500 });
-	} finally {
-		await closeConnection();
 	}
 }
 
@@ -161,8 +157,6 @@ async function deleteTipHandler(
 	} catch (error) {
 		console.error("Unsave tip error:", error);
 		return NextResponse.json({ error: "Failed to remove tip from saved tips" }, { status: 500 });
-	} finally {
-		await closeConnection();
 	}
 }
 

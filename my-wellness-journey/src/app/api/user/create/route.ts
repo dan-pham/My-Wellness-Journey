@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import User from "@/models/user";
-import { ensureConnection, closeConnection } from "@/lib/db/connection";
+import { ensureConnection } from "@/lib/db/connection";
 import { validateAndSanitizeInput, sanitizeInput } from "@/middleware/validation";
 import { apiRateLimiter } from "@/middleware/rateLimit";
 import { withApiMiddleware } from "@/lib/apiHandler";
@@ -68,8 +68,6 @@ async function createUserHandler(
 	} catch (error) {
 		console.error("Error creating user:", error);
 		return NextResponse.json({ error: "Failed to create user" }, { status: 500 });
-	} finally {
-		await closeConnection();
 	}
 }
 

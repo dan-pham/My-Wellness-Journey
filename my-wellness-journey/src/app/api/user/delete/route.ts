@@ -3,7 +3,7 @@ import User from "@/models/user";
 import Profile from "@/models/profile";
 import { authenticate } from "@/middleware/auth";
 import { validateAndSanitizeInput } from "@/middleware/validation";
-import { ensureConnection, closeConnection } from "@/lib/db/connection";
+import { ensureConnection } from "@/lib/db/connection";
 import { apiRateLimiter } from "@/middleware/rateLimit";
 import { withApiMiddleware } from "@/lib/apiHandler";
 import { deleteUserValidationSchema } from "./validation";
@@ -65,8 +65,6 @@ async function deleteUserHandler(
 	} catch (error) {
 		console.error("Delete account error: ", error);
 		return NextResponse.json({ error: "Failed to delete user account" }, { status: 500 });
-	} finally {
-		await closeConnection();
 	}
 }
 

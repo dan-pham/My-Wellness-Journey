@@ -9,7 +9,7 @@ import {
 } from "@/middleware/validation";
 import { authRateLimiter } from "@/middleware/rateLimit";
 import { withApiMiddleware } from "@/lib/apiHandler";
-import { ensureConnection, closeConnection } from "@/lib/db/connection";
+import { ensureConnection } from "@/lib/db/connection";
 
 // Validation schema for registration
 const VALIDATION_SCHEMA = {
@@ -83,9 +83,6 @@ async function registerHandler(req: NextRequest) {
 		}
 
 		return NextResponse.json({ error: "Failed to create user" }, { status: 500 });
-	} finally {
-		// Close the database connection if mongoose has an active connection
-		await closeConnection();
 	}
 }
 

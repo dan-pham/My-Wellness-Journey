@@ -39,7 +39,6 @@ jest.mock("@/middleware/validation", () => ({
 // Mock the database connection
 jest.mock("@/lib/db/connection", () => ({
 	ensureConnection: jest.fn(),
-	closeConnection: jest.fn(),
 }));
 
 // Mock the rate limiter

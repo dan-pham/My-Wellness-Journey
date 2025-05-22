@@ -11,7 +11,7 @@ import { passwordRateLimiter } from "@/middleware/rateLimit";
 import { withApiMiddleware } from "@/lib/apiHandler";
 import jwt from "jsonwebtoken";
 import { JWT_SECRET, JWT_EXPIRES_IN, createAuthCookie } from "@/config/auth";
-import { ensureConnection, closeConnection } from "@/lib/db/connection";
+import { ensureConnection } from "@/lib/db/connection";
 
 async function passwordHandler(req: NextRequest) {
 	try {
@@ -82,9 +82,6 @@ async function passwordHandler(req: NextRequest) {
 	} catch (error) {
 		console.error("Change password error:", error);
 		return NextResponse.json({ error: "Failed to change password" }, { status: 500 });
-	} finally {
-		// Close the database connection if mongoose has an active connection
-		await closeConnection();
 	}
 }
 

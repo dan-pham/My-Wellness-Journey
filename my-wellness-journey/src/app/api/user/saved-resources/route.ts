@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticate } from "@/middleware/auth";
 import { findProfileOrFail } from "@/lib/api/profileService";
-import { ensureConnection, closeConnection } from "@/lib/db/connection";
+import { ensureConnection } from "@/lib/db/connection";
 import { validateAndSanitizeInput } from "@/middleware/validation";
 import { apiRateLimiter } from "@/middleware/rateLimit";
 import { withApiMiddleware } from "@/lib/apiHandler";
@@ -44,8 +44,6 @@ async function getSavedResourcesHandler(
 	} catch (error) {
 		console.error("Get saved resources error:", error);
 		return NextResponse.json({ error: "Failed to get saved resources" }, { status: 500 });
-	} finally {
-		await closeConnection();
 	}
 }
 
@@ -106,8 +104,6 @@ async function saveResourceHandler(
 	} catch (error) {
 		console.error("Save resource error:", error);
 		return NextResponse.json({ error: "Failed to save resource" }, { status: 500 });
-	} finally {
-		await closeConnection();
 	}
 }
 
@@ -171,8 +167,6 @@ async function deleteResourceHandler(
 			{ error: "Failed to remove resource from saved resources" },
 			{ status: 500 }
 		);
-	} finally {
-		await closeConnection();
 	}
 }
 

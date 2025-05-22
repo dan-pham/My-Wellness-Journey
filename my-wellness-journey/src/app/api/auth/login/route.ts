@@ -5,7 +5,7 @@ import { validateAndSanitizeInput, isRequired, isEmail } from "@/middleware/vali
 import { authRateLimiter } from "@/middleware/rateLimit";
 import { withApiMiddleware } from "@/lib/apiHandler";
 import { JWT_SECRET, JWT_EXPIRES_IN, createAuthCookie } from "@/config/auth";
-import { ensureConnection, closeConnection } from "@/lib/db/connection";
+import { ensureConnection } from "@/lib/db/connection";
 
 async function loginHandler(req: NextRequest) {
 	try {
@@ -62,9 +62,6 @@ async function loginHandler(req: NextRequest) {
 	} catch (error) {
 		console.error("Login error:", error);
 		return NextResponse.json({ error: "Authentication failed" }, { status: 500 });
-	} finally {
-		// Close the database connection if mongoose has an active connection
-		await closeConnection();
 	}
 }
 

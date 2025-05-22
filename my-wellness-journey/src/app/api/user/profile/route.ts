@@ -4,7 +4,7 @@ import { sanitizeInput, validateAndSanitizeInput } from "@/middleware/validation
 import { apiRateLimiter } from "@/middleware/rateLimit";
 import { withApiMiddleware } from "@/lib/apiHandler";
 import { formatProfileResponse, findProfileOrFail } from "@/lib/api/profileService";
-import { ensureConnection, closeConnection } from "@/lib/db/connection";
+import { ensureConnection } from "@/lib/db/connection";
 import { UpdateProfileRequest } from "./types";
 import { isValidName, isValidDateOfBirth, isValidGender, isValidConditions } from "./validation";
 
@@ -37,8 +37,6 @@ async function getProfileHandler(req: NextRequest) {
 	} catch (error) {
 		console.error("Get profile error:", error);
 		return NextResponse.json({ error: "Failed to get user profile" }, { status: 500 });
-	} finally {
-		await closeConnection();
 	}
 }
 
@@ -112,8 +110,6 @@ async function updateProfileHandler(req: NextRequest) {
 	} catch (error) {
 		console.error("Update profile error:", error);
 		return NextResponse.json({ error: "Failed to update user profile" }, { status: 500 });
-	} finally {
-		await closeConnection();
 	}
 }
 

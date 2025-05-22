@@ -90,8 +90,17 @@ export const useSavedStore = create<SavedState>()(
 
 					return tipIds;
 				} catch (error) {
-					console.error("Error fetching saved items:", error);
-					// Don't set error for new users, just return empty arrays
+					console.error("Error fetching saved tips:", error);
+					
+					// Handle MongoDB connection pool errors gracefully
+					if (error instanceof Error && 
+					   (error.message.includes("MongoPoolClosedError") || 
+					    error.message.includes("connection pool") ||
+					    error.name === "PoolClosedError")) {
+						console.info("Database connection issue detected. Using empty saved tips array.");
+					}
+					
+					// Don't set error for new users or connection issues, just return empty arrays
 					set({ 
 						savedTips: [], 
 						savedTipsData: [], 
@@ -162,8 +171,17 @@ export const useSavedStore = create<SavedState>()(
 
 					return resourceIds;
 				} catch (error) {
-					console.error("Error fetching saved items:", error);
-					// Don't set error for new users, just return empty arrays
+					console.error("Error fetching saved resources:", error);
+					
+					// Handle MongoDB connection pool errors gracefully
+					if (error instanceof Error && 
+					   (error.message.includes("MongoPoolClosedError") || 
+					    error.message.includes("connection pool") ||
+					    error.name === "PoolClosedError")) {
+						console.info("Database connection issue detected. Using empty saved resources array.");
+					}
+					
+					// Don't set error for new users or connection issues, just return empty arrays
 					set({ 
 						savedResources: [], 
 						savedResourcesData: [], 
@@ -227,8 +245,17 @@ export const useSavedStore = create<SavedState>()(
 						savedTips: state.savedTips.filter((id) => id !== tipId),
 						savedTipsData: state.savedTipsData.filter((t) => t.id !== tipId),
 					}));
-					console.error("Error saving tip:", error);
-					toast.error("Failed to save tip");
+					
+					// Handle MongoDB connection pool errors gracefully
+					if (error instanceof Error && 
+					   (error.message.includes("MongoPoolClosedError") || 
+					    error.message.includes("connection pool") ||
+					    error.name === "PoolClosedError")) {
+						toast.error("Database connection error. Please try again later.");
+					} else {
+						console.error("Error saving tip:", error);
+						toast.error("Failed to save tip");
+					}
 				}
 			},
 
@@ -273,8 +300,17 @@ export const useSavedStore = create<SavedState>()(
 						savedTips: previousTips,
 						savedTipsData: previousTipsData,
 					});
-					console.error("Error removing tip:", error);
-					toast.error("Failed to remove tip");
+					
+					// Handle MongoDB connection pool errors gracefully
+					if (error instanceof Error && 
+					   (error.message.includes("MongoPoolClosedError") || 
+					    error.message.includes("connection pool") ||
+					    error.name === "PoolClosedError")) {
+						toast.error("Database connection error. Please try again later.");
+					} else {
+						console.error("Error removing tip:", error);
+						toast.error("Failed to remove tip");
+					}
 				}
 			},
 
@@ -330,8 +366,17 @@ export const useSavedStore = create<SavedState>()(
 						savedResources: state.savedResources.filter((id) => id !== resourceId),
 						savedResourcesData: state.savedResourcesData.filter((r) => r.id !== resourceId),
 					}));
-					console.error("Error saving resource:", error);
-					toast.error("Failed to save resource");
+					
+					// Handle MongoDB connection pool errors gracefully
+					if (error instanceof Error && 
+					   (error.message.includes("MongoPoolClosedError") || 
+					    error.message.includes("connection pool") ||
+					    error.name === "PoolClosedError")) {
+						toast.error("Database connection error. Please try again later.");
+					} else {
+						console.error("Error saving resource:", error);
+						toast.error("Failed to save resource");
+					}
 				}
 			},
 			removeResource: async (resourceId) => {
@@ -378,8 +423,17 @@ export const useSavedStore = create<SavedState>()(
 						savedResources: previousResources,
 						savedResourcesData: previousResourcesData,
 					});
-					console.error("Error removing resource:", error);
-					toast.error("Failed to remove resource");
+					
+					// Handle MongoDB connection pool errors gracefully
+					if (error instanceof Error && 
+					   (error.message.includes("MongoPoolClosedError") || 
+					    error.message.includes("connection pool") ||
+					    error.name === "PoolClosedError")) {
+						toast.error("Database connection error. Please try again later.");
+					} else {
+						console.error("Error removing resource:", error);
+						toast.error("Failed to remove resource");
+					}
 				}
 			},
 		}),
