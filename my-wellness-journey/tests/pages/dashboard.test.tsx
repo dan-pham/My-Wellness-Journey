@@ -12,9 +12,29 @@ jest.mock("next/navigation", () => ({
 	useRouter: jest.fn(() => ({ push: jest.fn() })),
 }));
 
-jest.mock("@/stores/authStore", () => ({
-	useAuthStore: jest.fn(),
-}));
+jest.mock("@/stores/authStore", () => {
+	const mockGetState = jest.fn().mockReturnValue({
+		isAuthenticated: true,
+		getToken: jest.fn().mockReturnValue("mock-token"),
+		user: {
+			email: "test@example.com"
+		}
+	});
+	
+	const mockAuthStore = jest.fn().mockReturnValue({
+		isAuthenticated: true,
+		user: {
+			email: "test@example.com"
+		}
+	});
+	
+	// Add getState as a property of the mock function
+	(mockAuthStore as any).getState = mockGetState;
+	
+	return {
+		useAuthStore: mockAuthStore
+	};
+});
 
 jest.mock("@/stores/tipOfTheDayStore", () => ({
 	useTipOfDayStore: jest.fn(),
@@ -43,8 +63,8 @@ jest.mock("@/app/components/TipCard", () => ({ tip }: { tip: { title: string } }
 jest.mock(
 	"@/app/components/ResourceCard",
 	() =>
-		({ resource }: { resource: { title: string } }) =>
-			<div data-testid="resource-card">{resource.title}</div>
+		({ resource }: { resource?: { title: string } }) =>
+			<div data-testid="resource-card">{resource?.title || 'No title'}</div>
 );
 jest.mock("@/app/components/Loading", () => ({
 	Loading: () => <div data-testid="loading-spinner">Loading...</div>,
@@ -112,10 +132,7 @@ describe("Dashboard Page", () => {
 				})
 		);
 
-		// Setup store mocks
-		(useAuthStore as unknown as jest.Mock).mockReturnValue({
-			isAuthenticated: true,
-		});
+		// No need to mock useAuthStore again, it's already set up in the jest.mock
 
 		(useTipOfDayStore as unknown as jest.Mock).mockReturnValue({
 			tip: mockTip,

@@ -154,11 +154,11 @@ describe("savedStore", () => {
 				await useSavedStore.getState().fetchSavedTips();
 			});
 
-			// Verify error state
+			// Verify error state - now is null for better UX for new users
 			const { savedTips, loading, error } = useSavedStore.getState();
 			expect(savedTips).toEqual([]);
 			expect(loading).toBe(false);
-			expect(error).toBe("Failed to fetch saved items");
+			expect(error).toBeNull();
 		});
 	});
 
@@ -220,11 +220,11 @@ describe("savedStore", () => {
 				await useSavedStore.getState().fetchSavedResources();
 			});
 
-			// Verify error state
+			// Verify error state - now is null for better UX for new users
 			const { savedResources, loading, error } = useSavedStore.getState();
 			expect(savedResources).toEqual([]);
 			expect(loading).toBe(false);
-			expect(error).toBe("Failed to fetch saved items");
+			expect(error).toBeNull();
 		});
 	});
 

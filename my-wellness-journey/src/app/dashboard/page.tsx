@@ -115,10 +115,34 @@ export default function DashboardPage() {
 			setError("");
 
 			try {
-				// Fetch user profile first
+				// Get auth token to ensure we're authenticated
+				const token = useAuthStore.getState().getToken();
+				if (!token) {
+					console.error("No auth token available");
+					setError("Authentication error. Please log in again.");
+					return;
+				}
+
+				// Fetch user profile
 				const profileResponse = await fetchWithAuth("/api/user/profile");
 
+				// Handle API errors gracefully
 				if (!profileResponse.ok) {
+					// If profile doesn't exist yet, show helpful message instead of error
+					if (profileResponse.status === 404) {
+						console.log("Profile not found, user may be new");
+						const currentUser = useAuthStore.getState().user;
+						setProfile({
+							firstName: currentUser?.email?.split('@')[0] || "User",
+							lastName: "",
+							conditions: [],
+							savedResources: [],
+							savedTips: []
+						});
+						setIsLoading(false);
+						return;
+					}
+
 					const errorData: ErrorResponse = await profileResponse.json();
 					setError(errorData.error || "Failed to fetch profile");
 					return;

@@ -180,8 +180,18 @@ export default function RecommendedResources() {
 		setError(null);
 
 		try {
-			const conditions = user?.profile?.chronicConditions?.map((c) => c.name);
+			// Handle the case for new users with no conditions
+			const conditions = user?.profile?.chronicConditions?.map((c) => c.name) || [];
 			const topicsToUse = conditions && conditions.length > 0 ? conditions : DEFAULT_TOPICS;
+
+			// If user is not authenticated or doesn't have a profile yet,
+			// just show general resources
+			if (!user || !user.profile) {
+				const generalResources = await fetchGeneralResources();
+				setResources(generalResources);
+				setLoading(false);
+				return;
+			}
 
 			const prompt = `Based on a patient with these health conditions or interests: ${topicsToUse.join(
 				", "
@@ -193,7 +203,22 @@ export default function RecommendedResources() {
 				body: JSON.stringify({ prompt }),
 			});
 
-			if (!gptResponse.ok) throw new Error("Failed to get recommendations");
+			// If GPT API fails, fall back to default topics and general resources
+			if (!gptResponse.ok) {
+				console.error("Failed to get GPT recommendations, using default topics");
+				const resourcePromises = DEFAULT_TOPICS.slice(0, RESOURCE_LIMIT).map(fetchResourcesByKeyword);
+				const resources = await Promise.all(resourcePromises);
+				const validResources = resources.filter(Boolean) as Resource[];
+				
+				if (validResources.length === 0) {
+					const generalResources = await fetchGeneralResources();
+					setResources(generalResources);
+				} else {
+					setResources(validResources);
+				}
+				setLoading(false);
+				return;
+			}
 
 			const gptData: GPTResponse = await gptResponse.json();
 			const keywords = gptData.reply ? parseGPTResponse(gptData.reply) : [];
@@ -212,12 +237,14 @@ export default function RecommendedResources() {
 			setResources(validResources);
 		} catch (error) {
 			console.error("Error fetching recommended resources:", error);
-			setError("Failed to load recommended resources");
-
+			
+			// Don't show error message, just fall back to general resources
 			const generalResources = await fetchGeneralResources();
 			if (generalResources.length > 0) {
 				setResources(generalResources);
 				setError(null);
+			} else {
+				setError("Failed to load recommended resources");
 			}
 		} finally {
 			setLoading(false);
@@ -256,11 +283,7 @@ export default function RecommendedResources() {
 	if (error) {
 		return (
 			<div className="w-full py-12">
-				<EmptyState
-					title="Error"
-					message={error}
-					icon={<div className="text-red-500">⚠️</div>}
-				/>
+				<EmptyState title="Error" message={error} icon={<div className="text-red-500">⚠️</div>} />
 			</div>
 		);
 	}

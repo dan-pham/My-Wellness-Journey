@@ -44,7 +44,18 @@ export const useSavedStore = create<SavedState>()(
 					// Fetch saved tips
 					const tipsRes = await fetchWithAuth("/api/user/saved-tips");
 
+					// If the request fails, gracefully handle it for new users
 					if (!tipsRes.ok) {
+						// For 404 errors (profile not found) or 500 errors, 
+						// just return an empty array for new users
+						if (tipsRes.status === 404 || tipsRes.status === 500) {
+							set({
+								savedTips: [],
+								savedTipsData: [],
+								loading: false,
+							});
+							return [];
+						}
 						throw new Error("Failed to fetch saved tips");
 					}
 
@@ -80,7 +91,13 @@ export const useSavedStore = create<SavedState>()(
 					return tipIds;
 				} catch (error) {
 					console.error("Error fetching saved items:", error);
-					set({ error: "Failed to fetch saved items", loading: false });
+					// Don't set error for new users, just return empty arrays
+					set({ 
+						savedTips: [], 
+						savedTipsData: [], 
+						error: null, 
+						loading: false 
+					});
 					return [];
 				}
 			},
@@ -98,7 +115,18 @@ export const useSavedStore = create<SavedState>()(
 					// Fetch saved resources
 					const resourcesRes = await fetchWithAuth("/api/user/saved-resources");
 
+					// If the request fails, gracefully handle it for new users
 					if (!resourcesRes.ok) {
+						// For 404 errors (profile not found) or 500 errors, 
+						// just return an empty array for new users
+						if (resourcesRes.status === 404 || resourcesRes.status === 500) {
+							set({
+								savedResources: [],
+								savedResourcesData: [],
+								loading: false,
+							});
+							return [];
+						}
 						throw new Error("Failed to fetch saved resources");
 					}
 
@@ -135,7 +163,13 @@ export const useSavedStore = create<SavedState>()(
 					return resourceIds;
 				} catch (error) {
 					console.error("Error fetching saved items:", error);
-					set({ error: "Failed to fetch saved items", loading: false });
+					// Don't set error for new users, just return empty arrays
+					set({ 
+						savedResources: [], 
+						savedResourcesData: [], 
+						error: null, 
+						loading: false 
+					});
 					return [];
 				}
 			},
