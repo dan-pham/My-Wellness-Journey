@@ -61,7 +61,6 @@ export default function DashboardPage() {
 		fetchTipOfDay,
 		dismissForToday,
 		showTip,
-		resetStore,
 		migrateTipIfNeeded,
 	} = useTipOfDayStore();
 
@@ -217,11 +216,10 @@ export default function DashboardPage() {
 		toast.success("Tip dismissed for today");
 	};
 
-	// Handle resetting the tip
-	const handleResetTip = () => {
-		resetStore();
+	// Handle showing the tip again
+	const handleShowTip = () => {
 		showTip();
-		toast.success("Tip reset successfully");
+		toast.success("Showing today's tip");
 	};
 
 	// Handle marking a tip as done
@@ -325,11 +323,10 @@ export default function DashboardPage() {
 									isLoading={tipLoading}
 									dismissed={dismissed}
 									onDismiss={handleDismissTip}
-									onReset={handleResetTip}
 									onSaveToggle={handleSaveTip}
+									onMarkDone={handleMarkDone}
 									savedTips={savedTips}
 									allowDismiss={true}
-									onMarkDone={handleMarkDone}
 								/>
 							)}
 

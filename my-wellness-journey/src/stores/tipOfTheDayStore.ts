@@ -22,7 +22,6 @@ interface TipOfDayState {
 	dismissForToday: () => void;
 	showTip: () => void;
 	resetDismissState: () => void;
-	resetStore: () => void;
 	migrateTipIfNeeded: () => void;
 }
 
@@ -45,6 +44,11 @@ export const useTipOfDayStore = create<TipOfDayState>()(
 				// If we already have a tip for today, use it
 				if (lastFetch === today && get().tip) {
 					return;
+				}
+
+				// Clear state if it's a new day
+				if (lastFetch !== today) {
+					set({ lastFetchDate: null, tip: null });
 				}
 
 				set({ isLoading: true, error: null });
@@ -107,31 +111,31 @@ export const useTipOfDayStore = create<TipOfDayState>()(
 
 			dismissForToday: () => set({ dismissed: true }),
 
-			showTip: () => set({ dismissed: false }),
-
-			resetDismissState: () => {
+			showTip: () => {
 				const { lastFetchDate } = get();
-				const lastFetchDay = lastFetchDate ? new Date(lastFetchDate).toDateString() : null;
-				const today = new Date().toDateString();
+				const today = new Date().toISOString().split("T")[0];
+				const lastFetch = lastFetchDate ? lastFetchDate.split("T")[0] : null;
 
-				// Only reset if it's a new day
-				if (lastFetchDay !== today) {
-					set({ dismissed: false });
+				// Always set dismissed to false
+				set({ dismissed: false });
+
+				// If we don't have a tip for today, fetch a new one
+				if (lastFetch !== today || !get().tip) {
+					get().fetchTipOfDay();
 				}
 			},
 
-			// Reset the entire store to initial state
-			resetStore: () => {
-				set({
-					tip: null,
-					lastFetchDate: null,
-					dismissed: false,
-					isLoading: false,
-					error: null,
-				});
+			resetDismissState: () => {
+				const { lastFetchDate } = get();
+				const today = new Date().toISOString().split("T")[0];
+				const lastFetch = lastFetchDate ? lastFetchDate.split("T")[0] : null;
+
+				// Only reset if it's a new day
+				if (lastFetch !== today) {
+					set({ dismissed: false, tip: null, lastFetchDate: null });
+				}
 			},
 
-			// Migrate old tip format to new format if needed
 			migrateTipIfNeeded: () => {
 				const currentTip = get().tip;
 

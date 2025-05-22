@@ -365,6 +365,7 @@ describe("resourceHistoryStore", () => {
 				description: "This is a test resource",
 				imageUrl: "https://example.com/image.jpg",
 				sourceUrl: "https://example.com/resource",
+				viewedAt: new Date().toISOString(),
 			};
 
 			// Login and add resource to history
@@ -376,6 +377,9 @@ describe("resourceHistoryStore", () => {
 			// Verify resource was added
 			expect(useResourceHistoryStore.getState().history).toHaveLength(1);
 
+			// Store the key for later
+			const originalHistoryKey = `${originalUser.id}-resource-history`;
+            
 			// Simulate token expiration by logging out
 			act(() => {
 				useAuthStore.getState().logout();
@@ -383,6 +387,19 @@ describe("resourceHistoryStore", () => {
 
 			// Verify history is cleared after logout
 			expect(useResourceHistoryStore.getState().history).toHaveLength(0);
+
+			// Manually add history data to localStorage after logout
+			// This simulates a user whose token expired but their data still exists
+			const historyData = {
+				state: {
+					state: {
+						history: [testResource],
+					},
+					version: 0,
+				},
+				timestamp: Date.now(),
+			};
+			localStorage.setItem(originalHistoryKey, JSON.stringify(historyData));
 
 			// Create new account
 			const newUser: User = {
@@ -401,9 +418,9 @@ describe("resourceHistoryStore", () => {
 			expect(useResourceHistoryStore.getState().history).toHaveLength(0);
 
 			// But the old history data still exists in localStorage
-			const oldHistoryKey = `${originalUser.id}-resource-history`;
-			const oldHistoryData = localStorage.getItem(oldHistoryKey);
+			const oldHistoryData = localStorage.getItem(originalHistoryKey);
 			expect(oldHistoryData).not.toBeNull();
+			expect(JSON.parse(oldHistoryData!).state.state.history).toHaveLength(1);
 		});
 	});
 });

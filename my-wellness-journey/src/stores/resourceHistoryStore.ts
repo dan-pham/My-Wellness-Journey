@@ -37,16 +37,16 @@ const createStorage = (): PersistStorage<ResourceHistoryState> => ({
 
 		try {
 			const data: PersistedHistoryData = JSON.parse(value);
-			
+
 			// Check if data has expired
 			const now = Date.now();
-			const expirationTime = data.timestamp + (HISTORY_EXPIRATION_DAYS * 24 * 60 * 60 * 1000);
-			
+			const expirationTime = data.timestamp + HISTORY_EXPIRATION_DAYS * 24 * 60 * 60 * 1000;
+
 			if (now > expirationTime) {
 				localStorage.removeItem(name);
 				return null;
 			}
-			
+
 			return data.state as StorageValue<ResourceHistoryState>;
 		} catch {
 			// If data is in old format or invalid, remove it
@@ -57,25 +57,25 @@ const createStorage = (): PersistStorage<ResourceHistoryState> => ({
 	setItem: (name, value: StorageValue<ResourceHistoryState>) => {
 		const data: PersistedHistoryData = {
 			state: value,
-			timestamp: Date.now()
+			timestamp: Date.now(),
 		};
 		localStorage.setItem(name, JSON.stringify(data));
 	},
 	removeItem: (name) => {
 		localStorage.removeItem(name);
-	}
+	},
 });
 
 // Function to clean up expired histories
 const cleanupExpiredHistories = () => {
 	const now = Date.now();
-	Object.keys(localStorage).forEach(key => {
-		if (key.endsWith('-resource-history')) {
+	Object.keys(localStorage).forEach((key) => {
+		if (key.endsWith("-resource-history")) {
 			const value = localStorage.getItem(key);
 			if (value) {
 				try {
 					const data: PersistedHistoryData = JSON.parse(value);
-					const expirationTime = data.timestamp + (HISTORY_EXPIRATION_DAYS * 24 * 60 * 60 * 1000);
+					const expirationTime = data.timestamp + HISTORY_EXPIRATION_DAYS * 24 * 60 * 60 * 1000;
 					if (now > expirationTime) {
 						localStorage.removeItem(key);
 					}
@@ -116,7 +116,7 @@ const createStore = (userId: string) => {
 				clearHistory: () => {
 					set({ history: [] });
 					// Also clear from localStorage
-					const userId = useAuthStore.getState().user?.id || 'anonymous';
+					const userId = useAuthStore.getState().user?.id || "anonymous";
 					localStorage.removeItem(`${userId}-resource-history`);
 				},
 			}),
@@ -147,19 +147,19 @@ type ResourceHistoryStore = {
 
 export const useResourceHistoryStore = Object.assign(
 	() => {
-		const userId = useAuthStore.getState().user?.id || 'anonymous';
-		
+		const userId = useAuthStore.getState().user?.id || "anonymous";
+
 		// Create new store instance if it doesn't exist
 		if (!stores[userId]) {
 			stores[userId] = createStore(userId);
 			cleanupExpiredHistories();
 		}
-		
+
 		return stores[userId]();
 	},
 	{
 		getState: () => {
-			const userId = useAuthStore.getState().user?.id || 'anonymous';
+			const userId = useAuthStore.getState().user?.id || "anonymous";
 			if (!stores[userId]) {
 				stores[userId] = createStore(userId);
 			}
@@ -167,36 +167,35 @@ export const useResourceHistoryStore = Object.assign(
 		},
 		cleanup: () => {
 			// Clear all stores from memory
-			Object.keys(stores).forEach(key => delete stores[key]);
-			
-			// Clear all resource history from localStorage
-			Object.keys(localStorage).forEach(key => {
-				if (key.endsWith('-resource-history')) {
-					localStorage.removeItem(key);
-				}
-			});
+			Object.keys(stores).forEach((key) => delete stores[key]);
 
-			// Recreate store for current user if logged in
-			const userId = useAuthStore.getState().user?.id;
-			if (userId) {
-				stores[userId] = createStore(userId);
+			// Get current user ID
+			const currentUserId = useAuthStore.getState().user?.id;
+
+			// Only clear current user's history and anonymous history
+			if (currentUserId) {
+				localStorage.removeItem(`${currentUserId}-resource-history`);
 			}
+			localStorage.removeItem("anonymous-resource-history");
+
+			// Don't recreate store for current user since they're logging out
+			// This ensures a clean slate for the next user
 		},
 		persist: {
 			getOptions: () => {
-				const userId = useAuthStore.getState().user?.id || 'anonymous';
+				const userId = useAuthStore.getState().user?.id || "anonymous";
 				return {
 					name: `${userId}-resource-history`,
 					storage: createStorage(),
 				};
 			},
 			clearStorage: () => {
-				Object.keys(localStorage).forEach(key => {
-					if (key.endsWith('-resource-history')) {
+				Object.keys(localStorage).forEach((key) => {
+					if (key.endsWith("-resource-history")) {
 						localStorage.removeItem(key);
 					}
 				});
-			}
-		}
+			},
+		},
 	}
 ) as ResourceHistoryStore;

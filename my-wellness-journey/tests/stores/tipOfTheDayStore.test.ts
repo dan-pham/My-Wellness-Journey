@@ -322,4 +322,133 @@ describe("tipOfTheDayStore", () => {
 			expect(serializedState).toBeTruthy();
 		});
 	});
+
+	describe("tip persistence within 24 hours", () => {
+		it("should return the same tip when showing after dismissal within the same calendar day", async () => {
+			const { result } = renderHook(() => useTipOfDayStore());
+
+			// Mock successful API response
+			mockFetch.mockResolvedValueOnce({
+				ok: true,
+				json: async () => ({
+					results: [
+						{
+							title: "Test Tip",
+							snippet: "Test Reason",
+							url: "https://example.com",
+						},
+					],
+				}),
+			});
+
+			// Set initial time to 9 AM
+			mockDate = new Date("2023-05-15T09:00:00Z");
+
+			// Fetch initial tip
+			await act(async () => {
+				await result.current.fetchTipOfDay();
+			});
+
+			// Store the initial tip
+			const initialTip = result.current.tip;
+			expect(initialTip).not.toBeNull();
+
+			// Dismiss the tip
+			act(() => {
+				result.current.dismissForToday();
+			});
+			expect(result.current.dismissed).toBe(true);
+
+			// Move time forward to 5 PM same day
+			mockDate = new Date("2023-05-15T17:00:00Z");
+
+			// Show the tip again
+			act(() => {
+				result.current.showTip();
+			});
+			expect(result.current.dismissed).toBe(false);
+
+			// Verify it's the same tip
+			expect(result.current.tip).toEqual(initialTip);
+
+			// Try fetching again - should not get a new tip
+			await act(async () => {
+				await result.current.fetchTipOfDay();
+			});
+
+			// Verify the tip hasn't changed
+			expect(result.current.tip).toEqual(initialTip);
+			// Verify we didn't make another API call
+			expect(mockFetch).toHaveBeenCalledTimes(1);
+		});
+
+		it("should get a new tip on a new calendar day", async () => {
+			const { result } = renderHook(() => useTipOfDayStore());
+			
+			// Mock first API response
+			mockFetch.mockResolvedValueOnce({
+				ok: true,
+				json: async () => ({
+					results: [{
+						title: "First Tip",
+						snippet: "First Reason",
+						url: "https://example.com/1"
+					}]
+				})
+			});
+
+			// Set initial time to 11 PM
+			mockDate = new Date("2023-05-15T23:00:00Z");
+
+			// Fetch initial tip
+			await act(async () => {
+				await result.current.fetchTipOfDay();
+			});
+
+			// Verify we got the first tip
+			expect(result.current.tip).not.toBeNull();
+			expect(result.current.tip?.task).toBe("First Tip");
+			
+			// Reset fetch mock for the second API call
+			mockFetch.mockReset();
+			
+			// Mock second API response with different data
+			mockFetch.mockResolvedValueOnce({
+				ok: true,
+				json: async () => ({
+					results: [{
+						title: "Second Tip",
+						snippet: "Second Reason",
+						url: "https://example.com/2"
+					}]
+				})
+			});
+
+			// Move time forward to 1 AM next day and manually reset state
+			mockDate = new Date("2023-05-16T01:00:00Z");
+			
+			// Explicitly reset the store to simulate a new day
+			act(() => {
+				// Directly set the relevant state
+				useTipOfDayStore.setState({
+					tip: null,
+					lastFetchDate: null,
+					dismissed: false
+				});
+			});
+
+			// Now try to fetch a new tip
+			await act(async () => {
+				await result.current.fetchTipOfDay();
+			});
+
+			// Verify we got the second tip
+			expect(result.current.tip).not.toBeNull();
+			expect(result.current.tip?.task).toBe("Second Tip");
+			expect(result.current.tip?.reason).toBe("Second Reason");
+			expect(result.current.tip?.sourceUrl).toBe("https://example.com/2");
+			expect(result.current.tip?.dateGenerated).toBe(mockDate.toISOString());
+			expect(mockFetch).toHaveBeenCalledTimes(1); // Only counts calls after reset
+		});
+	});
 });

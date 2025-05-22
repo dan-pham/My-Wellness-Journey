@@ -60,13 +60,16 @@ describe("TipOfTheDay Component", () => {
 				tip={mockTip}
 				isLoading={false}
 				dismissed={true}
-				onReset={mockOnReset}
+				onDismiss={mockOnReset}
 				onSaveToggle={mockOnSaveToggle}
 				savedTips={[]}
 			/>
 		);
 
-		expect(screen.getByText("Your daily wellness tip is hidden")).toBeInTheDocument();
+		expect(screen.getByTestId("dismissed-message")).toBeInTheDocument();
+		expect(screen.getByTestId("dismissed-message")).toHaveTextContent(
+			"Your daily wellness tip is hidden"
+		);
 
 		const resetButton = screen.getByText("Show Today's Tip");
 		fireEvent.click(resetButton);

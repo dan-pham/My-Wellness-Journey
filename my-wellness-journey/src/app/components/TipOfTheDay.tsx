@@ -12,7 +12,6 @@ interface TipOfTheDayProps {
 	isLoading: boolean;
 	dismissed: boolean;
 	onDismiss?: () => void;
-	onReset?: () => void;
 	onSaveToggle: (tipId: string) => void;
 	onMarkDone?: (tipId: string) => void;
 	savedTips: string[];
@@ -34,7 +33,7 @@ interface ResetStateProps {
 interface HeaderProps {
 	allowDismiss: boolean;
 	onDismiss?: () => void;
-	onReset: () => void;
+	onReset?: () => void;
 }
 
 // Components
@@ -50,7 +49,9 @@ const DismissedState: React.FC<DismissedStateProps> = ({ onReset }) => (
 		<div className="flex flex-col sm:flex-row items-center justify-between gap-4">
 			<div className="flex items-center">
 				<FaLightbulb className="text-primary-heading mr-3 h-5 w-5" />
-				<p className="text-primary-subheading">Your daily wellness tip is hidden</p>
+				<p data-testid="dismissed-message" className="text-primary-subheading">
+					Your daily wellness tip is hidden
+				</p>
 			</div>
 			<div className="flex space-x-3">
 				<button
@@ -83,34 +84,26 @@ const ResetState: React.FC<ResetStateProps> = ({ onReset }) => (
 	</div>
 );
 
-const Header: React.FC<HeaderProps> = ({ allowDismiss, onDismiss, onReset }) => (
-	<div className="flex justify-between items-center mb-4">
-		<div className="flex items-center">
-			<FaLightbulb className="text-primary-accent mr-2 h-4 w-4" />
-			<h2 className="text-lg font-medium text-primary-heading">Today's Wellness Tip</h2>
-		</div>
-		{allowDismiss && (
-			<div className="flex space-x-3">
-				{onDismiss && (
-					<button
-						onClick={onDismiss}
-						className="flex items-center text-primary-subheading hover:text-primary-accent transition-colors duration-200 text-sm"
-					>
-						<FaTimes className="mr-1 h-3 w-3" />
-						Dismiss for today
-					</button>
-				)}
+const Header: React.FC<HeaderProps> = ({ allowDismiss, onDismiss }) => {
+	return (
+		<div className="flex items-center justify-between mb-4">
+			<h2 className="text-2xl font-semibold flex items-center gap-2">
+				<FaLightbulb className="text-yellow-500" />
+				Today's Wellness Tip
+			</h2>
+			{allowDismiss && onDismiss && (
 				<button
-					onClick={onReset}
-					className="flex items-center text-primary-subheading hover:text-red-500 transition-colors duration-200 text-sm"
+					onClick={onDismiss}
+					className="text-gray-500 hover:text-gray-700 transition-colors flex items-center gap-2"
+					title="Dismiss for today"
 				>
-					<FaRedo className="mr-1 h-3 w-3" />
-					Reset tip
+					<span>Dismiss for today</span>
+					<FaTimes />
 				</button>
-			</div>
-		)}
-	</div>
-);
+			)}
+		</div>
+	);
+};
 
 // Main Component
 const TipOfTheDay: React.FC<TipOfTheDayProps> = ({
@@ -118,13 +111,12 @@ const TipOfTheDay: React.FC<TipOfTheDayProps> = ({
 	isLoading,
 	dismissed,
 	onDismiss,
-	onReset,
 	onSaveToggle,
 	onMarkDone,
 	savedTips,
 	allowDismiss = false,
 }) => {
-	const { migrateTipIfNeeded, resetStore } = useTipOfDayStore();
+	const { migrateTipIfNeeded } = useTipOfDayStore();
 	const { savedTips: currentSavedTips } = useSavedStore();
 
 	useEffect(() => {
@@ -133,22 +125,17 @@ const TipOfTheDay: React.FC<TipOfTheDayProps> = ({
 		}
 	}, [tip, migrateTipIfNeeded]);
 
-	const handleCompleteReset = () => {
-		resetStore();
-		onReset?.();
-	};
-
 	if (isLoading && !dismissed) {
 		return <LoadingState />;
 	}
 
-	if (dismissed && onReset) {
-		return <DismissedState onReset={onReset} />;
+	if (dismissed && onDismiss) {
+		return <DismissedState onReset={onDismiss} />;
 	}
 
 	const hasOldFormat = tip && ("title" in tip || "content" in tip);
 	if (hasOldFormat) {
-		return <ResetState onReset={handleCompleteReset} />;
+		return null;
 	}
 
 	if (!tip) return null;
@@ -160,7 +147,7 @@ const TipOfTheDay: React.FC<TipOfTheDayProps> = ({
 
 	return (
 		<section className="mb-12">
-			<Header allowDismiss={allowDismiss} onDismiss={onDismiss} onReset={handleCompleteReset} />
+			<Header allowDismiss={allowDismiss} onDismiss={onDismiss} />
 			<div className="max-w-2xl mx-auto">
 				<TipCard tip={preparedTip} onSaveToggle={onSaveToggle} onMarkDone={onMarkDone} />
 			</div>

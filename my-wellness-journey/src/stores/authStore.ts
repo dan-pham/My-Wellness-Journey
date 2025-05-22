@@ -36,6 +36,21 @@ const isTokenValid = (token: string): boolean => {
 	}
 };
 
+// Helper to clear all resource history from localStorage
+const clearResourceHistory = () => {
+	if (typeof window === "undefined") return;
+
+	// Clear all resource history from localStorage
+	Object.keys(localStorage).forEach((key) => {
+		if (key.endsWith("-resource-history")) {
+			localStorage.removeItem(key);
+		}
+	});
+
+	// Clear any anonymous history
+	localStorage.removeItem("anonymous-resource-history");
+};
+
 export const useAuthStore = create<AuthState>()(
 	persist(
 		(set, get) => ({
@@ -64,6 +79,10 @@ export const useAuthStore = create<AuthState>()(
 					localStorage.removeItem("token");
 					sessionStorage.removeItem("token");
 				}
+
+				// Clear resource history
+				clearResourceHistory();
+
 				set({ user: null, isAuthenticated: false, token: null });
 			},
 
