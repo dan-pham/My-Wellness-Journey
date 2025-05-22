@@ -112,7 +112,7 @@ export const useTipOfDayStore = create<TipOfDayState>()(
 			dismissForToday: () => set({ dismissed: true }),
 
 			showTip: () => {
-				const { lastFetchDate } = get();
+				const { lastFetchDate, tip } = get();
 				const today = new Date().toISOString().split("T")[0];
 				const lastFetch = lastFetchDate ? lastFetchDate.split("T")[0] : null;
 
@@ -120,7 +120,7 @@ export const useTipOfDayStore = create<TipOfDayState>()(
 				set({ dismissed: false });
 
 				// If we don't have a tip for today, fetch a new one
-				if (lastFetch !== today || !get().tip) {
+				if (lastFetch !== today || !tip) {
 					get().fetchTipOfDay();
 				}
 			},

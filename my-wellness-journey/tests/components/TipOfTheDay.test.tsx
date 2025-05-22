@@ -20,6 +20,20 @@ jest.mock("@/app/components/Loading", () => ({
 	Loading: () => <div data-testid="loading">Loading...</div>,
 }));
 
+// Mock the useTipOfDayStore
+jest.mock("@/stores/tipOfTheDayStore", () => ({
+	useTipOfDayStore: jest.fn(() => ({
+		migrateTipIfNeeded: jest.fn(),
+	})),
+}));
+
+// Mock the useSavedStore
+jest.mock("@/stores/savedStore", () => ({
+	useSavedStore: jest.fn(() => ({
+		savedTips: [],
+	})),
+}));
+
 describe("TipOfTheDay Component", () => {
 	const mockTip: Tip = {
 		id: "tip-123",
@@ -33,7 +47,6 @@ describe("TipOfTheDay Component", () => {
 	const mockOnSaveToggle = jest.fn();
 	const mockOnMarkDone = jest.fn();
 	const mockOnDismiss = jest.fn();
-	const mockOnReset = jest.fn();
 
 	beforeEach(() => {
 		jest.clearAllMocks();
@@ -60,20 +73,58 @@ describe("TipOfTheDay Component", () => {
 				tip={mockTip}
 				isLoading={false}
 				dismissed={true}
-				onDismiss={mockOnReset}
+				onShowTip={mockOnDismiss}
 				onSaveToggle={mockOnSaveToggle}
 				savedTips={[]}
 			/>
 		);
 
 		expect(screen.getByTestId("dismissed-message")).toBeInTheDocument();
-		expect(screen.getByTestId("dismissed-message")).toHaveTextContent(
-			"Your daily wellness tip is hidden"
-		);
+		expect(screen.getByTestId("dismissed-message")).toHaveTextContent("Your daily wellness tip is hidden");
 
 		const resetButton = screen.getByText("Show Today's Tip");
 		fireEvent.click(resetButton);
-		expect(mockOnReset).toHaveBeenCalled();
+		expect(mockOnDismiss).toHaveBeenCalled();
+	});
+
+	it("clicking Show Today's Tip should show the tip after dismissal", () => {
+		// First render in dismissed state
+		const { rerender } = render(
+			<TipOfTheDay
+				tip={mockTip}
+				isLoading={false}
+				dismissed={true}
+				onShowTip={mockOnDismiss}
+				onSaveToggle={mockOnSaveToggle}
+				savedTips={[]}
+			/>
+		);
+
+		// Verify we're showing the dismissed state
+		expect(screen.getByTestId("dismissed-message")).toBeInTheDocument();
+
+		// Click the "Show Today's Tip" button
+		const resetButton = screen.getByText("Show Today's Tip");
+		fireEvent.click(resetButton);
+		expect(mockOnDismiss).toHaveBeenCalled();
+
+		// Now simulate the state update that should happen in the parent component
+		// by rerendering with dismissed=false
+		rerender(
+			<TipOfTheDay
+				tip={mockTip}
+				isLoading={false}
+				dismissed={false}
+				onShowTip={mockOnDismiss}
+				onSaveToggle={mockOnSaveToggle}
+				savedTips={[]}
+			/>
+		);
+
+		// Verify the tip is now shown
+		expect(screen.queryByTestId("dismissed-message")).not.toBeInTheDocument();
+		expect(screen.getByTestId("tip-task")).toBeInTheDocument();
+		expect(screen.getByTestId("tip-task")).toHaveTextContent(mockTip.task);
 	});
 
 	it("renders tip correctly with task and reason text", () => {

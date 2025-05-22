@@ -32,6 +32,12 @@ interface PersistedHistoryData {
 // Create storage object with expiration check
 const createStorage = (): PersistStorage<ResourceHistoryState> => ({
 	getItem: (name) => {
+		// Check if we're in a browser environment
+		if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+			// Return a dummy store for SSR
+			return null;
+		}
+		
 		const value = localStorage.getItem(name);
 		if (!value) return null;
 
@@ -68,6 +74,11 @@ const createStorage = (): PersistStorage<ResourceHistoryState> => ({
 
 // Function to clean up expired histories
 const cleanupExpiredHistories = () => {
+	// Only run in browser environment
+	if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+		return;
+	}
+	
 	const now = Date.now();
 	Object.keys(localStorage).forEach((key) => {
 		if (key.endsWith("-resource-history")) {
@@ -166,6 +177,11 @@ export const useResourceHistoryStore = Object.assign(
 			return stores[userId].getState();
 		},
 		cleanup: () => {
+			// Only run in browser environment
+			if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+				return;
+			}
+			
 			// Clear all stores from memory
 			Object.keys(stores).forEach((key) => delete stores[key]);
 

@@ -12,6 +12,7 @@ interface TipOfTheDayProps {
 	isLoading: boolean;
 	dismissed: boolean;
 	onDismiss?: () => void;
+	onShowTip?: () => void;
 	onSaveToggle: (tipId: string) => void;
 	onMarkDone?: (tipId: string) => void;
 	savedTips: string[];
@@ -23,7 +24,7 @@ interface LoadingStateProps {
 }
 
 interface DismissedStateProps {
-	onReset: () => void;
+	onReset?: () => void;
 }
 
 interface ResetStateProps {
@@ -54,13 +55,15 @@ const DismissedState: React.FC<DismissedStateProps> = ({ onReset }) => (
 				</p>
 			</div>
 			<div className="flex space-x-3">
-				<button
-					onClick={onReset}
-					className="px-4 py-2 bg-primary-accent text-white rounded-lg hover:bg-primary-accent/90 transition-colors flex items-center"
-				>
-					<FaLightbulb className="mr-2 h-4 w-4" />
-					Show Today's Tip
-				</button>
+				{onReset && (
+					<button
+						onClick={onReset}
+						className="px-4 py-2 bg-primary-accent text-white rounded-lg hover:bg-primary-accent/90 transition-colors flex items-center"
+					>
+						<FaLightbulb className="mr-2 h-4 w-4" />
+						Show Today's Tip
+					</button>
+				)}
 			</div>
 		</div>
 	</div>
@@ -111,6 +114,7 @@ const TipOfTheDay: React.FC<TipOfTheDayProps> = ({
 	isLoading,
 	dismissed,
 	onDismiss,
+	onShowTip,
 	onSaveToggle,
 	onMarkDone,
 	savedTips,
@@ -129,8 +133,8 @@ const TipOfTheDay: React.FC<TipOfTheDayProps> = ({
 		return <LoadingState />;
 	}
 
-	if (dismissed && onDismiss) {
-		return <DismissedState onReset={onDismiss} />;
+	if (dismissed) {
+		return <DismissedState onReset={onShowTip || onDismiss} />;
 	}
 
 	const hasOldFormat = tip && ("title" in tip || "content" in tip);

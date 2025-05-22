@@ -1,6 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { useTipOfDayStore } from "@/stores/tipOfTheDayStore";
 import { Tip } from "@/types/tip";
+import { before } from "node:test";
 
 describe("tipOfTheDayStore", () => {
 	// Mock fetch
@@ -10,6 +11,9 @@ describe("tipOfTheDayStore", () => {
 	// Save original Date implementation
 	const originalDate = global.Date;
 	let mockDate: Date;
+
+	// Suppress console.error for this test
+	const originalConsoleError = console.error;
 
 	beforeEach(() => {
 		jest.clearAllMocks();
@@ -40,9 +44,16 @@ describe("tipOfTheDayStore", () => {
 		} as DateConstructor;
 	});
 
+	beforeAll(() => {
+		console.error = jest.fn();
+	});
+
 	afterAll(() => {
 		// Restore original Date implementation
 		global.Date = originalDate;
+
+		// Restore the original implementations
+		console.error = originalConsoleError;
 	});
 
 	it("should initialize with default values", () => {
@@ -97,10 +108,6 @@ describe("tipOfTheDayStore", () => {
 	});
 
 	it("should handle API errors gracefully", async () => {
-		// Temporarily suppress console.error for this test
-		const originalConsoleError = console.error;
-		console.error = jest.fn();
-
 		// Mock a failed API response
 		(global.fetch as jest.Mock).mockResolvedValueOnce({
 			ok: false,
@@ -120,9 +127,6 @@ describe("tipOfTheDayStore", () => {
 			expect(result.current.error).not.toBeNull();
 			expect(result.current.tip).toBeNull();
 		});
-
-		// Restore the original implementations
-		console.error = originalConsoleError;
 	});
 
 	it("should not fetch a new tip if one was already fetched today", async () => {
@@ -384,17 +388,19 @@ describe("tipOfTheDayStore", () => {
 
 		it("should get a new tip on a new calendar day", async () => {
 			const { result } = renderHook(() => useTipOfDayStore());
-			
+
 			// Mock first API response
 			mockFetch.mockResolvedValueOnce({
 				ok: true,
 				json: async () => ({
-					results: [{
-						title: "First Tip",
-						snippet: "First Reason",
-						url: "https://example.com/1"
-					}]
-				})
+					results: [
+						{
+							title: "First Tip",
+							snippet: "First Reason",
+							url: "https://example.com/1",
+						},
+					],
+				}),
 			});
 
 			// Set initial time to 11 PM
@@ -408,32 +414,34 @@ describe("tipOfTheDayStore", () => {
 			// Verify we got the first tip
 			expect(result.current.tip).not.toBeNull();
 			expect(result.current.tip?.task).toBe("First Tip");
-			
+
 			// Reset fetch mock for the second API call
 			mockFetch.mockReset();
-			
+
 			// Mock second API response with different data
 			mockFetch.mockResolvedValueOnce({
 				ok: true,
 				json: async () => ({
-					results: [{
-						title: "Second Tip",
-						snippet: "Second Reason",
-						url: "https://example.com/2"
-					}]
-				})
+					results: [
+						{
+							title: "Second Tip",
+							snippet: "Second Reason",
+							url: "https://example.com/2",
+						},
+					],
+				}),
 			});
 
 			// Move time forward to 1 AM next day and manually reset state
 			mockDate = new Date("2023-05-16T01:00:00Z");
-			
+
 			// Explicitly reset the store to simulate a new day
 			act(() => {
 				// Directly set the relevant state
 				useTipOfDayStore.setState({
 					tip: null,
 					lastFetchDate: null,
-					dismissed: false
+					dismissed: false,
 				});
 			});
 
@@ -449,6 +457,37 @@ describe("tipOfTheDayStore", () => {
 			expect(result.current.tip?.sourceUrl).toBe("https://example.com/2");
 			expect(result.current.tip?.dateGenerated).toBe(mockDate.toISOString());
 			expect(mockFetch).toHaveBeenCalledTimes(1); // Only counts calls after reset
+		});
+	});
+
+	describe("showTip", () => {
+		it("should reset dismissed state and show the tip again", () => {
+			// Arrange - set up state with a dismissed tip
+			act(() => {
+				useTipOfDayStore.setState({
+					tip: {
+						id: "test-tip",
+						task: "Test Task",
+						reason: "Test Reason",
+						sourceUrl: "https://example.com",
+						dateGenerated: new Date().toISOString(),
+						tag: ["test"],
+					},
+					dismissed: true,
+					lastFetchDate: new Date().toISOString(),
+				});
+			});
+
+			// Verify dismissed state is initially true
+			expect(useTipOfDayStore.getState().dismissed).toBe(true);
+
+			// Act - call showTip
+			act(() => {
+				useTipOfDayStore.getState().showTip();
+			});
+
+			// Assert - dismissed should be false
+			expect(useTipOfDayStore.getState().dismissed).toBe(false);
 		});
 	});
 });

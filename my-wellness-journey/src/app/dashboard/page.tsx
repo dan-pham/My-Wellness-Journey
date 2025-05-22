@@ -218,7 +218,11 @@ export default function DashboardPage() {
 
 	// Handle showing the tip again
 	const handleShowTip = () => {
+		// First change the state to show the tip
 		showTip();
+		
+		// Only show the success message
+		// DON'T show "Tip dismissed for today" message
 		toast.success("Showing today's tip");
 	};
 
@@ -323,6 +327,7 @@ export default function DashboardPage() {
 									isLoading={tipLoading}
 									dismissed={dismissed}
 									onDismiss={handleDismissTip}
+									onShowTip={handleShowTip}
 									onSaveToggle={handleSaveTip}
 									onMarkDone={handleMarkDone}
 									savedTips={savedTips}
