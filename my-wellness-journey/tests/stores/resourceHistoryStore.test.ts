@@ -1,18 +1,33 @@
 import { act } from "@testing-library/react";
 import { useResourceHistoryStore, ResourceHistoryItem } from "@/stores/resourceHistoryStore";
+import { useAuthStore } from "@/stores/authStore";
+import { User } from "@/types/user";
 
 describe("resourceHistoryStore", () => {
 	// Save original Date implementation
 	const originalDate = global.Date;
 	let mockDate: Date;
 
+	// Mock user for testing
+	const testUser: User = {
+		id: "test-user-id",
+		email: "test@example.com",
+		firstName: "Test",
+		lastName: "User",
+	};
+
 	beforeEach(() => {
-		// Reset the store to initial state before each test
+		// Clear localStorage first
+		localStorage.clear();
+
+		// Reset stores and auth state
 		act(() => {
-			useResourceHistoryStore.getState().clearHistory();
+			useAuthStore.getState().logout();
+			useResourceHistoryStore.cleanup();
+			useAuthStore.getState().login(testUser);
 		});
 
-		// Mock Date to have consistent timestamps in tests
+		// Mock Date
 		mockDate = new Date("2023-04-15T12:00:00Z");
 		global.Date = class extends Date {
 			constructor() {
@@ -26,14 +41,23 @@ describe("resourceHistoryStore", () => {
 		} as DateConstructor;
 	});
 
+	afterEach(() => {
+		// Cleanup after each test
+		act(() => {
+			useAuthStore.getState().logout();
+			useResourceHistoryStore.cleanup();
+		});
+		localStorage.clear();
+	});
+
 	afterAll(() => {
-		// Restore original Date implementation
 		global.Date = originalDate;
+		useAuthStore.getState().logout();
 	});
 
 	describe("initial state", () => {
 		it("should have an empty history array", () => {
-			const { history } = useResourceHistoryStore.getState();
+			const history = useResourceHistoryStore.getState().history;
 			expect(history).toEqual([]);
 		});
 	});
@@ -52,7 +76,7 @@ describe("resourceHistoryStore", () => {
 				useResourceHistoryStore.getState().addToHistory(resource);
 			});
 
-			const { history } = useResourceHistoryStore.getState();
+			const history = useResourceHistoryStore.getState().history;
 
 			expect(history).toHaveLength(1);
 			expect(history[0]).toEqual({
@@ -94,7 +118,7 @@ describe("resourceHistoryStore", () => {
 				useResourceHistoryStore.getState().addToHistory(resource2);
 			});
 
-			const { history } = useResourceHistoryStore.getState();
+			const history = useResourceHistoryStore.getState().history;
 
 			expect(history).toHaveLength(2);
 			// Second resource should be first in the array
@@ -143,7 +167,7 @@ describe("resourceHistoryStore", () => {
 				});
 			});
 
-			const { history } = useResourceHistoryStore.getState();
+			const history = useResourceHistoryStore.getState().history;
 
 			// Verify still only 2 items
 			expect(history).toHaveLength(2);
@@ -173,7 +197,7 @@ describe("resourceHistoryStore", () => {
 				});
 			});
 
-			const { history } = useResourceHistoryStore.getState();
+			const history = useResourceHistoryStore.getState().history;
 
 			// Should only keep the 10 most recent items
 			expect(history).toHaveLength(10);
@@ -184,6 +208,28 @@ describe("resourceHistoryStore", () => {
 
 			// The most recent resource should be first
 			expect(history[0].id).toBe("11");
+		});
+
+		it("should not add to history when user is not logged in", () => {
+			// Logout user
+			act(() => {
+				useAuthStore.getState().logout();
+			});
+
+			const resource = {
+				id: "123",
+				title: "Test Resource",
+				description: "This is a test resource",
+				imageUrl: "https://example.com/image.jpg",
+				sourceUrl: "https://example.com/resource",
+			};
+
+			act(() => {
+				useResourceHistoryStore.getState().addToHistory(resource);
+			});
+
+			const history = useResourceHistoryStore.getState().history;
+			expect(history).toHaveLength(0);
 		});
 	});
 
@@ -228,10 +274,136 @@ describe("resourceHistoryStore", () => {
 	});
 
 	describe("persistence", () => {
-		it("should use the correct persistence name", () => {
+		it("should use the correct persistence name with user ID", () => {
 			// Access the persist object to check configuration
 			const persistOptions = useResourceHistoryStore.persist.getOptions();
-			expect(persistOptions.name).toBe("resource-history-storage");
+			expect(persistOptions.name).toBe(`${testUser.id}-resource-history`);
+		});
+	});
+
+	describe("user-specific history", () => {
+		it("should not persist history between different users", async () => {
+			const user1: User = {
+				id: "user1",
+				email: "user1@test.com",
+				firstName: "User",
+				lastName: "One",
+			};
+
+			const user2: User = {
+				id: "user2",
+				email: "user2@test.com",
+				firstName: "User",
+				lastName: "Two",
+			};
+
+			const testResource = {
+				id: "123",
+				title: "Test Resource",
+				description: "This is a test resource",
+				imageUrl: "https://example.com/image.jpg",
+				sourceUrl: "https://example.com/resource",
+			};
+
+			// User 1 scenario
+			act(() => {
+				useAuthStore.getState().login(user1);
+				useResourceHistoryStore.getState().addToHistory(testResource);
+			});
+
+			// Verify User 1's history
+			expect(useResourceHistoryStore.getState().history).toHaveLength(1);
+
+			// Switch to User 2
+			act(() => {
+				useAuthStore.getState().logout();
+				useAuthStore.getState().login(user2);
+			});
+
+			// Verify User 2's history is empty
+			expect(useResourceHistoryStore.getState().history).toHaveLength(0);
+		});
+
+		it("should clear history on logout", () => {
+			const testResource = {
+				id: "123",
+				title: "Test Resource",
+				description: "This is a test resource",
+				imageUrl: "https://example.com/image.jpg",
+				sourceUrl: "https://example.com/resource",
+			};
+
+			// Add resource while logged in
+			act(() => {
+				useResourceHistoryStore.getState().addToHistory(testResource);
+			});
+
+			// Verify resource was added
+			expect(useResourceHistoryStore.getState().history).toHaveLength(1);
+
+			// Logout
+			act(() => {
+				useAuthStore.getState().logout();
+			});
+
+			// Verify history is empty for anonymous user
+			expect(useResourceHistoryStore.getState().history).toHaveLength(0);
+		});
+
+		it("should handle token expiration and new account creation", () => {
+			// Initial user with some history
+			const originalUser: User = {
+				id: "original-user",
+				email: "original@test.com",
+				firstName: "Original",
+				lastName: "User",
+			};
+
+			const testResource = {
+				id: "123",
+				title: "Test Resource",
+				description: "This is a test resource",
+				imageUrl: "https://example.com/image.jpg",
+				sourceUrl: "https://example.com/resource",
+			};
+
+			// Login and add resource to history
+			act(() => {
+				useAuthStore.getState().login(originalUser);
+				useResourceHistoryStore.getState().addToHistory(testResource);
+			});
+
+			// Verify resource was added
+			expect(useResourceHistoryStore.getState().history).toHaveLength(1);
+
+			// Simulate token expiration by logging out
+			act(() => {
+				useAuthStore.getState().logout();
+			});
+
+			// Verify history is cleared after logout
+			expect(useResourceHistoryStore.getState().history).toHaveLength(0);
+
+			// Create new account
+			const newUser: User = {
+				id: "new-user",
+				email: "new@test.com",
+				firstName: "New",
+				lastName: "User",
+			};
+
+			// Login with new account
+			act(() => {
+				useAuthStore.getState().login(newUser);
+			});
+
+			// Verify new account starts with empty history
+			expect(useResourceHistoryStore.getState().history).toHaveLength(0);
+
+			// But the old history data still exists in localStorage
+			const oldHistoryKey = `${originalUser.id}-resource-history`;
+			const oldHistoryData = localStorage.getItem(oldHistoryKey);
+			expect(oldHistoryData).not.toBeNull();
 		});
 	});
 });

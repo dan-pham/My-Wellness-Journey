@@ -133,11 +133,11 @@ export default function DashboardPage() {
 						console.log("Profile not found, user may be new");
 						const currentUser = useAuthStore.getState().user;
 						setProfile({
-							firstName: currentUser?.email?.split('@')[0] || "User",
+							firstName: currentUser?.email?.split("@")[0] || "User",
 							lastName: "",
 							conditions: [],
 							savedResources: [],
-							savedTips: []
+							savedTips: [],
 						});
 						setIsLoading(false);
 						return;
@@ -337,43 +337,45 @@ export default function DashboardPage() {
 							<RecommendedResources />
 
 							{/* Recently Viewed Resources */}
-							<section className="mb-16">
-								<div className="flex items-center justify-between mb-8">
-									<h2 className="text-2xl font-semibold text-primary-heading">
-										Recently Viewed Resources
-									</h2>
-									<Link
-										href="/resources"
-										className="text-primary-accent hover:text-primary-accent/80 transition-colors duration-200 flex items-center gap-2 whitespace-nowrap"
-									>
-										View All Resources <FaArrowRight className="w-4 h-4" />
-									</Link>
-								</div>
-
-								{recentlyViewedResources.length === 0 ? (
-									<EmptyState
-										title="No Recent Activity"
-										message="You haven't viewed any resources yet"
-										actionLabel="Explore Resources"
-										actionUrl="/resources"
-									/>
-								) : (
-									<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-										{recentlyViewedResources.slice(0, 3).map((resource) => (
-											<ResourceCard
-												key={resource.id}
-												id={resource.id}
-												title={resource.title}
-												description={resource.description}
-												imageUrl={resource.imageUrl}
-												sourceUrl={resource.sourceUrl}
-												isSaved={savedResources.includes(resource.id)}
-												onSaveToggle={() => handleSaveResource(resource)}
-											/>
-										))}
+							{isAuthenticated && (
+								<section className="mb-16">
+									<div className="flex items-center justify-between mb-8">
+										<h2 className="text-2xl font-semibold text-primary-heading">
+											Recently Viewed Resources
+										</h2>
+										<Link
+											href="/resources"
+											className="text-primary-accent hover:text-primary-accent/80 transition-colors duration-200 flex items-center gap-2 whitespace-nowrap"
+										>
+											View All Resources <FaArrowRight className="w-4 h-4" />
+										</Link>
 									</div>
-								)}
-							</section>
+
+									{recentlyViewedResources.length === 0 ? (
+										<EmptyState
+											title="No Recent Activity"
+											message="You haven't viewed any resources yet"
+											actionLabel="Explore Resources"
+											actionUrl="/resources"
+										/>
+									) : (
+										<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+											{recentlyViewedResources.slice(0, 3).map((resource) => (
+												<ResourceCard
+													key={resource.id}
+													id={resource.id}
+													title={resource.title}
+													description={resource.description}
+													imageUrl={resource.imageUrl}
+													sourceUrl={resource.sourceUrl}
+													isSaved={savedResources.includes(resource.id)}
+													onSaveToggle={() => handleSaveResource(resource)}
+												/>
+											))}
+										</div>
+									)}
+								</section>
+							)}
 						</>
 					)}
 				</div>
