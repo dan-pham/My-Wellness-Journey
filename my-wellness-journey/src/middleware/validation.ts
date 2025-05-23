@@ -47,25 +47,19 @@ export function sanitizeInput(input: string): string {
 }
 
 export function validateAndSanitizeInput(schema: ValidationSchema) {
-	return async (req: NextRequest) => {
+	return async (req: NextRequest | any) => {
 		let data: any;
+		
 		try {
-			data = await req.json();
-		} catch (error) {
-			// If request body is missing or invalid JSON, check for required fields
-			const errors: { [key: string]: string[] } = {};
-			Object.keys(schema).forEach((field) => {
-				const rules = schema[field];
-				const hasRequiredRule = rules.some(rule => 
-					rule.validator === isRequired(field).validator
-				);
-				if (hasRequiredRule) {
-					errors[field] = [`${field} is required`];
-				}
-			});
-			if (Object.keys(errors).length > 0) {
-				return NextResponse.json({ errors }, { status: 400 });
+			// If req is already the data object, use it directly
+			if (typeof req === 'object' && !('json' in req)) {
+				data = req;
+			} else {
+				// Otherwise, try to parse it as a request
+				data = await req.json();
 			}
+		} catch (error) {
+			console.error('Validation middleware - JSON parse error:', error);
 			return NextResponse.json({ error: "Invalid request data" }, { status: 400 });
 		}
 
@@ -73,34 +67,63 @@ export function validateAndSanitizeInput(schema: ValidationSchema) {
 		const sanitizedData: { [key: string]: any } = {};
 
 		// Validate and sanitize each field against its rules
-		Object.keys(schema).forEach((field) => {
+		for (const field of Object.keys(schema)) {
 			const rules = schema[field];
 			const value = data[field];
 			const fieldErrors: string[] = [];
 
-			// Handle string sanitization
-			if (typeof value === "string") {
+			// Skip sanitization for date fields and gender enums
+			if (field === 'dateOfBirth' || field === 'gender') {
+				sanitizedData[field] = value;
+			}
+			// Handle string sanitization for simple string values
+			else if (typeof value === 'string') {
 				sanitizedData[field] = sanitizeInput(value);
-			} else {
+			} 
+			// Handle arrays of objects with string properties
+			else if (Array.isArray(value)) {
+				sanitizedData[field] = value.map(item => {
+					if (typeof item === 'string') {
+						return sanitizeInput(item);
+					}
+					if (typeof item === 'object' && item !== null) {
+						const sanitizedItem: any = {};
+						for (const [key, val] of Object.entries(item)) {
+							sanitizedItem[key] = typeof val === 'string' ? sanitizeInput(val) : val;
+						}
+						return sanitizedItem;
+					}
+					return item;
+				});
+			}
+			// Handle other values as-is
+			else {
 				sanitizedData[field] = value;
 			}
 
-			rules.forEach((rule) => {
-				if (!rule.validator(sanitizedData[field])) {
-					fieldErrors.push(rule.message);
+			// Apply validation rules
+			for (const rule of rules) {
+				try {
+					if (!rule.validator(sanitizedData[field])) {
+						fieldErrors.push(rule.message);
+						break; // Stop on first validation failure for this field
+					}
+				} catch (error) {
+					console.error(`Validation error for field ${field}:`, error);
+					fieldErrors.push('Invalid value provided');
 				}
-			});
+			}
 
 			if (fieldErrors.length > 0) {
 				errors[field] = fieldErrors;
 			}
-		});
+		}
 
 		if (Object.keys(errors).length > 0) {
+			console.error('Validation middleware - Validation errors:', errors);
 			return NextResponse.json({ errors }, { status: 400 });
 		}
 
-		// If validation passes, add validated and sanitized data to request
 		return { validated: sanitizedData };
 	};
 }

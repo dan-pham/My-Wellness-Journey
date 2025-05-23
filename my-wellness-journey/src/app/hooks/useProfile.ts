@@ -82,22 +82,59 @@ export const useProfile = () => {
 		setIsSaving(true);
 
 		try {
+			const { dateOfBirth } = profileData;
+
+			if (dateOfBirth) {
+				const dob = new Date(dateOfBirth);
+				const now = new Date();
+
+				// Check if DOB is in the future
+				if (dob > now) {
+					throw new Error("Date of birth cannot be in the future.");
+				}
+
+				// Check if DOB is more than 120 years ago
+				const earliestValidDate = new Date();
+				earliestValidDate.setFullYear(earliestValidDate.getFullYear() - 120);
+
+				if (dob < earliestValidDate) {
+					throw new Error("Date of birth must be within the last 120 years.");
+				}
+			}
+
+			const payload = {
+				firstName: profileData.firstName,
+				lastName: profileData.lastName,
+				dateOfBirth: profileData.dateOfBirth,
+				gender: profileData.gender || "",
+			};
+
 			const response = await fetchWithAuth("/api/user/profile", {
 				method: "PUT",
-				body: JSON.stringify(profileData),
+				body: JSON.stringify(payload),
 			});
 
 			if (!response.ok) {
 				const errorData = await response.json();
+				console.error("handleSaveProfile - Error response:", errorData);
 				throw new Error(errorData.error || "Failed to update profile");
 			}
 
 			const data = await response.json();
-			setProfile(data.profile);
+
+			setProfile((prev) => ({
+				...prev!,
+				...data.profile,
+				user: prev?.user, // Preserve user data
+			}));
 			toast.success("Profile updated successfully");
 		} catch (err) {
-			console.error("Error updating profile:", err);
-			toast.error("Failed to update profile. Please try again.");
+			console.error("handleSaveProfile - Error:", err);
+
+			const errorMessage =
+				err instanceof Error ? err.message : "Failed to update profile. Please try again.";
+
+			toast.error(errorMessage);
 		} finally {
 			setIsSaving(false);
 		}
@@ -113,7 +150,6 @@ export const useProfile = () => {
 			}));
 
 			const payload = {
-				...(profile || {}),
 				conditions: formattedConditions,
 			};
 
@@ -124,14 +160,20 @@ export const useProfile = () => {
 
 			if (!response.ok) {
 				const errorData = await response.json();
+				console.error("handleSaveConditions - Error response:", errorData);
 				throw new Error(errorData.error || "Failed to update conditions");
 			}
 
 			const data = await response.json();
-			setProfile(data.profile);
+
+			setProfile((prev) => ({
+				...prev!,
+				...data.profile,
+				user: prev?.user, // Preserve user data
+			}));
 			toast.success("Health conditions updated successfully");
 		} catch (err) {
-			console.error("Error updating conditions:", err);
+			console.error("handleSaveConditions - Error:", err);
 			toast.error("Failed to update health conditions. Please try again.");
 		} finally {
 			setIsSaving(false);
@@ -159,6 +201,18 @@ export const useProfile = () => {
 				const errorData = await response.json();
 				throw new Error(errorData.error || "Failed to update email");
 			}
+
+			setProfile((prev) =>
+				prev
+					? {
+							...prev,
+							user: {
+								...prev.user,
+								email: emailData.newEmail,
+							},
+					  }
+					: null
+			);
 
 			toast.success("Email update successful.");
 		} catch (err) {

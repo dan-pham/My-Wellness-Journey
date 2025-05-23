@@ -66,15 +66,27 @@ const profileSchema = new Schema<IProfile>(
 		},
 		dateOfBirth: {
 			type: Date,
-			get: (value: Date) =>
-				value ? new Date(safeDecrypt(value.toString()) || value.toString()) : value,
-			set: (value: Date) => (value ? safeEncrypt(value.toString()) : value),
+			get: function(value: Date | null) {
+				if (!value) return undefined;
+				return value;
+			},
+			set: function(value: string | Date | undefined) {
+				if (!value) return undefined;
+				return new Date(value);
+			}
 		},
 		gender: {
 			type: String,
-			enum: ["male", "female", "non-binary", "prefer-not-to-say", ""],
+			validate: {
+				validator: function(value: string) {
+					// Decrypt the value if it's encrypted
+					const decryptedValue = value.includes(':') ? safeDecrypt(value) : value;
+					return ["male", "female", "non-binary", "prefer-not-to-say", ""].includes(decryptedValue || "");
+				},
+				message: "Gender must be one of: male, female, non-binary, prefer-not-to-say or empty"
+			},
 			get: (value: string) => safeDecrypt(value),
-			set: (value: string) => safeEncrypt(value),
+			set: (value: string) => safeEncrypt(value || "")
 		},
 		conditions: [
 			{

@@ -19,6 +19,7 @@ interface FormFieldProps {
 	value: string;
 	onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
 	options?: Array<{ value: string; label: string }>;
+	error?: string;
 }
 
 const FormField = ({
@@ -29,6 +30,7 @@ const FormField = ({
 	value,
 	onChange,
 	options,
+	error,
 }: FormFieldProps) => (
 	<div className="space-y-2">
 		<label htmlFor={id} className="block text-sm font-medium text-primary-heading">
@@ -40,7 +42,9 @@ const FormField = ({
 				name={name}
 				value={value}
 				onChange={onChange}
-				className="w-full px-4 py-2 text-primary-heading bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-accent/20 focus:border-primary-accent outline-none transition-all duration-200"
+				className={`w-full px-4 py-2 text-primary-heading bg-white border ${
+					error ? "border-red-500" : "border-gray-200"
+				} rounded-lg focus:ring-2 focus:ring-primary-accent/20 focus:border-primary-accent outline-none transition-all duration-200`}
 			>
 				{options?.map((option) => (
 					<option key={option.value} value={option.value}>
@@ -55,9 +59,12 @@ const FormField = ({
 				name={name}
 				value={value}
 				onChange={onChange}
-				className="w-full px-4 py-2 text-primary-heading bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-accent/20 focus:border-primary-accent outline-none transition-all duration-200"
+				className={`w-full px-4 py-2 text-primary-heading bg-white border ${
+					error ? "border-red-500" : "border-gray-200"
+				} rounded-lg focus:ring-2 focus:ring-primary-accent/20 focus:border-primary-accent outline-none transition-all duration-200`}
 			/>
 		)}
+		{error && <p className="text-sm text-red-500 mt-1">{error}</p>}
 	</div>
 );
 

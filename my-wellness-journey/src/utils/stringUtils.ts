@@ -39,6 +39,12 @@ export function levenshteinDistance(a: string, b: string): number {
  */
 export function formatDate(date: string | Date | undefined): string {
 	if (!date) return "";
-	const d = new Date(date);
-	return d.toISOString().split("T")[0];
+	try {
+		const d = new Date(date);
+		if (isNaN(d.getTime())) return "";
+		return d.toISOString().split("T")[0];
+	} catch (error) {
+		console.error("Error formatting date:", error);
+		return "";
+	}
 } 
