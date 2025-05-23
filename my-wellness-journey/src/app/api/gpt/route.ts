@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { searchMedlinePlus } from "@/lib/api/medlineplus";
 import redis, { generateCacheKey, CACHE_TTL, safeRedisOperation } from "@/lib/redis";
-import { getOpenAIResponse } from "@/lib/api/openai";
 
 interface ActionableTask {
 	id: string;
@@ -150,11 +149,11 @@ export async function POST(req: NextRequest) {
 		} else {
 			try {
 				response = JSON.parse(content || "{}");
-				
+
 				// Extract the source URL from the medlineContent object
 				const medlineData = JSON.parse(medlineContent);
 				const sourceUrl = medlineData.url || `https://medlineplus.gov/health/${query}`;
-				
+
 				// Ensure each task has the proper MedlinePlus URL and ID
 				if (response.actionableTasks) {
 					response.actionableTasks = response.actionableTasks.map((task: ActionableTask) => ({

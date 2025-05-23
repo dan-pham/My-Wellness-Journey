@@ -147,7 +147,6 @@ export default function TipsPage() {
 	const [savedTipsVisible, setSavedTipsVisible] = useState(true);
 	const [isLoadingTasks, setIsLoadingTasks] = useState(false);
 	const [actionableTasks, setActionableTasks] = useState<Tip[] | null>(null);
-	const [recentSearches, setRecentSearches] = useState<string[]>([]);
 
 	const { isAuthenticated, user } = useAuthStore();
 	const {
@@ -194,15 +193,6 @@ export default function TipsPage() {
 		});
 	}, [fetchSavedTips, isAuthenticated, fetchTipOfDay]);
 
-	useEffect(() => {
-		if (typeof window !== "undefined") {
-			const storedSearches = localStorage.getItem("recentSearches");
-			if (storedSearches) {
-				setRecentSearches(JSON.parse(storedSearches));
-			}
-		}
-	}, []);
-
 	const fetchActionableTasks = async (query: string) => {
 		setIsLoadingTasks(true);
 		try {
@@ -210,7 +200,7 @@ export default function TipsPage() {
 			const medlineResponse = await fetch(
 				`/api/medlineplus?query=${encodeURIComponent(query)}&maxResults=3`
 			);
-			
+
 			if (!medlineResponse.ok) {
 				toast.error(`Failed to fetch health tips (${medlineResponse.status})`);
 				setActionableTasks([]);
@@ -230,7 +220,7 @@ export default function TipsPage() {
 			const medlineContent = JSON.stringify({
 				title: firstArticle.title,
 				url: firstArticle.url,
-				snippet: firstArticle.snippet
+				snippet: firstArticle.snippet,
 			});
 
 			const userProfile = isAuthenticated ? user?.profile : null;
@@ -305,15 +295,6 @@ export default function TipsPage() {
 		if (!searchQuery.trim()) return;
 
 		setHasSearched(true);
-		const updatedSearches = [searchQuery, ...recentSearches.filter((s) => s !== searchQuery)].slice(
-			0,
-			5
-		);
-		setRecentSearches(updatedSearches);
-
-		if (typeof window !== "undefined") {
-			localStorage.setItem("recentSearches", JSON.stringify(updatedSearches));
-		}
 
 		try {
 			await fetchActionableTasks(searchQuery);
@@ -366,8 +347,6 @@ export default function TipsPage() {
 				searchQuery={searchQuery}
 				setSearchQuery={setSearchQuery}
 				onSearch={handleSearch}
-				recentSearches={recentSearches}
-				onRecentSearchClick={handleTopicClick}
 			/>
 
 			{isAuthenticated && savedTipsData.length > 0 && savedTipsVisible && (

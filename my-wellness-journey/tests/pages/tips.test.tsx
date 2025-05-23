@@ -172,10 +172,7 @@ describe("Tips Page", () => {
 
 		// Mock localStorage
 		const mockLocalStorage = {
-			getItem: jest.fn().mockImplementation((key) => {
-				if (key === "recentSearches") return JSON.stringify(["diabetes", "exercise"]);
-				return null;
-			}),
+			getItem: jest.fn(),
 			setItem: jest.fn(),
 			removeItem: jest.fn(),
 		};
@@ -601,37 +598,6 @@ describe("Tips Page", () => {
 		await waitFor(() => {
 			const tipCard = screen.getByTestId("tip-card-diabetes-task-1");
 			expect(tipCard).toBeInTheDocument();
-		});
-	});
-
-	it("displays recent searches", async () => {
-		// Mock localStorage with recent searches
-		const mockLocalStorage = {
-			getItem: jest.fn().mockImplementation((key) => {
-				if (key === "recentSearches") return JSON.stringify(["diabetes", "exercise"]);
-				return null;
-			}),
-			setItem: jest.fn(),
-		};
-		Object.defineProperty(window, "localStorage", { value: mockLocalStorage });
-
-		await act(async () => {
-			render(<TipsPage />);
-		});
-
-		// Check that recent searches are displayed
-		expect(screen.getByText("Recent searches:")).toBeInTheDocument();
-
-		// Click on a specific recent search button
-		const diabetesButton = screen.getByTestId("recent-search-diabetes");
-		await act(async () => {
-			fireEvent.click(diabetesButton);
-		});
-
-		// Wait for search results
-		await waitFor(() => {
-			const tipCards = screen.getAllByTestId("tip-card-diabetes-task-1");
-			expect(tipCards).toHaveLength(1);
 		});
 	});
 

@@ -4,8 +4,6 @@ interface TipSearchProps {
 	searchQuery: string;
 	setSearchQuery: (query: string) => void;
 	onSearch: (e: React.FormEvent) => void;
-	recentSearches?: string[];
-	onRecentSearchClick?: (search: string) => void;
 	placeholder?: string;
 }
 
@@ -13,8 +11,6 @@ export const TipSearch: React.FC<TipSearchProps> = ({
 	searchQuery,
 	setSearchQuery,
 	onSearch,
-	recentSearches = [],
-	onRecentSearchClick,
 	placeholder = "Search tips by topic or keyword",
 }) => {
 	return (
@@ -45,26 +41,6 @@ export const TipSearch: React.FC<TipSearchProps> = ({
 					Search <FaSearch className="w-4 h-4" />
 				</button>
 			</form>
-
-			{/* Recent Searches */}
-			{recentSearches.length > 0 && onRecentSearchClick && (
-				<div className="mt-4">
-					<p className="text-sm text-primary-subheading mb-2">Recent searches:</p>
-					<div className="flex flex-wrap gap-2">
-						{recentSearches.map((search, index) => (
-							<button
-								key={index}
-								onClick={() => onRecentSearchClick(search)}
-								className="px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-full text-sm transition-colors"
-								aria-label={`Search recent term: ${search}`}
-								data-testid={`recent-search-${search}`}
-							>
-								{search}
-							</button>
-						))}
-					</div>
-				</div>
-			)}
 		</div>
 	);
 };
