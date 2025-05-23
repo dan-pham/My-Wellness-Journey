@@ -170,12 +170,25 @@ export default function TipsPage() {
 			// Handle both actionable tasks and saved tips
 			const tip =
 				actionableTasks?.find((t) => t.id === tipId) || savedTipsData.find((t) => t.id === tipId);
-			if (!tip) return;
+			if (!tip) {
+				console.error("Tip not found:", tipId);
+				toast.error("Tip not found");
+				return;
+			}
 
-			if (savedTips.includes(tipId)) {
-				await removeTip(tipId);
-			} else {
-				await addTip(tipId, tip);
+			try {
+				const isSaved = savedTips.includes(tipId);
+
+				if (isSaved) {
+					await removeTip(tipId);
+					toast.success("Tip removed from saved");
+				} else {
+					await addTip(tipId, tip);
+					toast.success("Tip saved");
+				}
+			} catch (error) {
+				console.error("Error toggling tip save status:", error);
+				toast.error("Failed to update saved status");
 			}
 		},
 	});
@@ -210,7 +223,6 @@ export default function TipsPage() {
 			const medlineData = await medlineResponse.json();
 
 			if (!medlineData.results || medlineData.results.length === 0) {
-				console.log("No results found from MedlinePlus for query:", query);
 				setActionableTasks([]);
 				return;
 			}
@@ -242,7 +254,7 @@ export default function TipsPage() {
 				console.error("GPT API error:", response.status);
 				// If GPT fails but we have MedlinePlus results, use those directly
 				const taskTips = medlineData.results.map((result: any) => ({
-					id: `medline-${encodeURIComponent(result.url)}`,
+					id: `medline-${encodeURIComponent(result.url)}-${encodeURIComponent(result.title)}`,
 					task: result.title || "Health Tip",
 					reason: result.snippet || "Improves your overall health and wellness",
 					sourceUrl: result.url || `https://medlineplus.gov/health/${query}`,
@@ -259,7 +271,7 @@ export default function TipsPage() {
 			let taskTips: Tip[] = [];
 			if (data.actionableTasks) {
 				taskTips = data.actionableTasks.map((task: any) => ({
-					id: task.id,
+					id: `medline-${encodeURIComponent(task.sourceUrl)}-${encodeURIComponent(task.task)}`,
 					task: task.task || task.title || "Health Tip",
 					reason: task.reason || task.content || "Improves your overall health and wellness",
 					sourceUrl: task.sourceUrl || `https://medlineplus.gov/health/${query}`,
@@ -270,7 +282,7 @@ export default function TipsPage() {
 			} else if (medlineData.results) {
 				// Fallback to MedlinePlus results if GPT didn't return actionable tasks
 				taskTips = medlineData.results.map((result: any) => ({
-					id: `medline-${encodeURIComponent(result.url)}`,
+					id: `medline-${encodeURIComponent(result.url)}-${encodeURIComponent(result.title)}`,
 					task: result.title || "Health Tip",
 					reason: result.snippet || "Improves your overall health and wellness",
 					sourceUrl: result.url || `https://medlineplus.gov/health/${query}`,

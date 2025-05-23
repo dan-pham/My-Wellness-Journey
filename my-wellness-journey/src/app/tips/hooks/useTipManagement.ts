@@ -52,10 +52,8 @@ export const useTipManagement = ({ initialTips = [], onSaveToggle }: UseTipManag
 				// Update local state after onSaveToggle succeeds
 				if (tip.saved) {
 					setLocalSavedTips((prev) => prev.filter((id) => id !== tipId));
-					toast.success("Tip unsaved");
 				} else {
 					setLocalSavedTips((prev) => [...prev, tipId]);
-					toast.success("Tip saved");
 				}
 			} catch (err) {
 				// Revert local state on error

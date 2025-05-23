@@ -40,37 +40,36 @@ const getTipContent = (tip: Tip): { task: string; reason: string } => ({
 });
 
 // Components
-const TaskSection: React.FC<TaskSectionProps> = ({ id, task, isSaved, onSaveToggle }) => (
-	<div className="flex items-center justify-between gap-2 mb-4">
-		<div className="flex-shrink-0 mt-[0.3rem]">
-			<FaLightbulb className="w-5 h-5 text-yellow-400" />
-		</div>
+const TaskSection: React.FC<TaskSectionProps> = ({ id, task, isSaved, onSaveToggle }) => {
+	return (
+		<div className="flex items-start justify-between gap-2 mb-4 px-2">
+			<p className="font-medium text-primary-heading">{task}</p>
 
-		<button
-			onClick={onSaveToggle}
-			className="text-primary-accent hover:scale-110 transition-transform duration-200 flex-shrink-0"
-			aria-label={isSaved ? "Remove from saved" : "Save tip"}
-			data-testid={`save-button-${id}`}
-		>
-			{isSaved ? <FaBookmark className="w-4 h-4" /> : <FaRegBookmark className="w-4 h-4" />}
-		</button>
-	</div>
-);
+			<button
+				onClick={(e) => {
+					e.preventDefault();
+					e.stopPropagation();
+					onSaveToggle(e);
+				}}
+				type="button"
+				className="text-primary-accent hover:scale-110 transition-transform duration-200 flex-shrink-0"
+				aria-label={isSaved ? "Remove from saved" : "Save tip"}
+				data-testid={`save-button-${id}`}
+			>
+				{isSaved ? <FaBookmark className="w-4 h-4" /> : <FaRegBookmark className="w-4 h-4" />}
+			</button>
+		</div>
+	);
+};
 
 const ReasonSection: React.FC<ReasonSectionProps> = ({ reason }) => (
 	<div className="flex items-start gap-2 mb-4 px-2">
-		<p className="text-sm text-primary-subheading">{reason}</p>
+		<p className="text-sm text-primary-subheading whitespace-normal break-words">{reason}</p>
 	</div>
 );
 
 const SourceLink: React.FC<SourceLinkProps> = ({ id, sourceUrl }) => (
 	<div className="flex justify-end gap-4">
-		<Link
-			href={`/tips/${id}`}
-			className="text-primary-accent hover:text-primary-accent/80 transition-colors duration-200"
-		>
-			Read More
-		</Link>
 		{sourceUrl && (
 			<a
 				href={sourceUrl}
@@ -90,24 +89,34 @@ const TipCard: React.FC<TipCardProps> = ({ tip, onSaveToggle }) => {
 	const { isAuthenticated } = useAuthStore();
 	const { task, reason } = getTipContent(tip);
 
-	const [isSaved, setIsSaved] = useState(tip.saved || savedTips.includes(tip.id) || false);
+	const [isSaved, setIsSaved] = useState(savedTips.includes(tip.id));
 
 	useEffect(() => {
-		const isCurrentlySaved = tip.saved || savedTips.includes(tip.id);
-		if (isSaved !== isCurrentlySaved) {
-			setIsSaved(isCurrentlySaved);
-		}
-	}, [tip.saved, savedTips, tip.id, isSaved]);
+		const isCurrentlySaved = savedTips.includes(tip.id);
+		setIsSaved(isCurrentlySaved);
+	}, [savedTips, tip.id]);
 
-	const handleSaveToggle = (e: React.MouseEvent) => {
+	const handleSaveToggle = async (e: React.MouseEvent) => {
+		e.preventDefault();
 		e.stopPropagation();
-		onSaveToggle(tip.id);
-		setIsSaved(!isSaved);
+
+		if (!isAuthenticated) {
+			toast.error("Please log in to save tips");
+			return;
+		}
+
+		try {
+			await onSaveToggle(tip.id);
+		} catch (error) {
+			console.error("Error in handleSaveToggle:", error);
+			toast.error("Failed to update tip");
+		}
 	};
 
 	return (
 		<div
 			className={`bg-white rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-200 border border-gray-100`}
+			onClick={(e) => e.stopPropagation()}
 		>
 			<TaskSection id={tip.id} task={task} isSaved={isSaved} onSaveToggle={handleSaveToggle} />
 			<ReasonSection reason={reason} />

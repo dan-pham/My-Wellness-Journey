@@ -118,7 +118,6 @@ export default function DashboardPage() {
 				if (!profileResponse.ok) {
 					// If profile doesn't exist yet, show helpful message instead of error
 					if (profileResponse.status === 404) {
-						console.log("Profile not found, user may be new");
 						const currentUser = useAuthStore.getState().user;
 						setProfile({
 							firstName: currentUser?.email?.split("@")[0] || "User",

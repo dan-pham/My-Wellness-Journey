@@ -119,11 +119,14 @@ async function deleteTipHandler(
 
 		// Get tip ID from URL search params
 		const { searchParams } = new URL(req.url);
-		const tipId = searchParams.get("tipId");
+		const receivedTipId = searchParams.get("tipId");
 
-		if (!tipId) {
+		if (!receivedTipId) {
 			return NextResponse.json({ error: "Tip ID is required" }, { status: 400 });
 		}
+
+		// Re-encode the received tipId to match the stored format
+		const tipId = encodeURIComponent(receivedTipId);
 
 		// Connect to database
 		await ensureConnection();
@@ -155,7 +158,7 @@ async function deleteTipHandler(
 			throw error;
 		}
 	} catch (error) {
-		console.error("Unsave tip error:", error);
+		console.error("Error removing tip from saved tips:", error);
 		return NextResponse.json({ error: "Failed to remove tip from saved tips" }, { status: 500 });
 	}
 }
