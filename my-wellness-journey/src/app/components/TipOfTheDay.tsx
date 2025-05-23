@@ -14,7 +14,6 @@ interface TipOfTheDayProps {
 	onDismiss?: () => void;
 	onShowTip?: () => void;
 	onSaveToggle: (tipId: string) => void;
-	onMarkDone?: (tipId: string) => void;
 	savedTips: string[];
 	allowDismiss?: boolean;
 }
@@ -116,7 +115,6 @@ const TipOfTheDay: React.FC<TipOfTheDayProps> = ({
 	onDismiss,
 	onShowTip,
 	onSaveToggle,
-	onMarkDone,
 	savedTips,
 	allowDismiss = false,
 }) => {
@@ -153,7 +151,7 @@ const TipOfTheDay: React.FC<TipOfTheDayProps> = ({
 		<section className="mb-12">
 			<Header allowDismiss={allowDismiss} onDismiss={onDismiss} />
 			<div className="max-w-2xl mx-auto">
-				<TipCard tip={preparedTip} onSaveToggle={onSaveToggle} onMarkDone={onMarkDone} />
+				<TipCard tip={preparedTip} onSaveToggle={onSaveToggle} />
 			</div>
 		</section>
 	);

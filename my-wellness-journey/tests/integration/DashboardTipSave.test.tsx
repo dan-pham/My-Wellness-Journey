@@ -19,11 +19,10 @@ jest.mock("@/lib/auth/authFetch", () => ({
 
 // Mock the authStore
 jest.mock("@/stores/authStore", () => ({
-	useAuthStore: {
-		getState: jest.fn().mockReturnValue({
-			isAuthenticated: true,
-		}),
-	},
+	useAuthStore: jest.fn().mockReturnValue({
+		isAuthenticated: true,
+		user: { id: "test-user-id" },
+	}),
 }));
 
 // Mock Next.js Link component
@@ -44,7 +43,6 @@ describe("Dashboard Tip Save Integration Test", () => {
 		reason: "This is the reason why this health tip is important for your wellness.",
 		sourceUrl: "https://example.com/source",
 		saved: false,
-		done: false,
 	};
 
 	beforeEach(() => {
@@ -98,7 +96,6 @@ describe("Dashboard Tip Save Integration Test", () => {
 				isLoading={false}
 				dismissed={false}
 				onSaveToggle={handleSaveTip}
-				onMarkDone={jest.fn()}
 				savedTips={[]}
 				allowDismiss={true}
 			/>
@@ -149,7 +146,6 @@ describe("Dashboard Tip Save Integration Test", () => {
 				isLoading={false}
 				dismissed={false}
 				onSaveToggle={handleSaveTip}
-				onMarkDone={jest.fn()}
 				savedTips={[]}
 				allowDismiss={true}
 			/>
@@ -173,7 +169,6 @@ describe("Dashboard Tip Save Integration Test", () => {
 				isLoading={false}
 				dismissed={false}
 				onSaveToggle={handleSaveTip}
-				onMarkDone={jest.fn()}
 				savedTips={useSavedStore.getState().savedTips}
 				allowDismiss={true}
 			/>
@@ -197,7 +192,6 @@ describe("Dashboard Tip Save Integration Test", () => {
 				isLoading={false}
 				dismissed={false}
 				onSaveToggle={handleSaveTip}
-				onMarkDone={jest.fn()}
 				savedTips={useSavedStore.getState().savedTips}
 				allowDismiss={true}
 			/>
@@ -232,7 +226,6 @@ describe("Dashboard Tip Save Integration Test", () => {
 				isLoading={false}
 				dismissed={false}
 				onSaveToggle={handleSaveTip}
-				onMarkDone={jest.fn()}
 				savedTips={[]}
 				allowDismiss={true}
 			/>

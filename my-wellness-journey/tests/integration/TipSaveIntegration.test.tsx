@@ -18,11 +18,10 @@ jest.mock("@/lib/auth/authFetch", () => ({
 
 // Mock the authStore
 jest.mock("@/stores/authStore", () => ({
-	useAuthStore: {
-		getState: jest.fn().mockReturnValue({
-			isAuthenticated: true,
-		}),
-	},
+	useAuthStore: jest.fn().mockReturnValue({
+		isAuthenticated: true,
+		user: { id: "test-user-id" },
+	}),
 }));
 
 // Mock Next.js Link component
@@ -43,7 +42,6 @@ describe("Tip Saving Integration Test", () => {
 		reason: "This is the reason why this health tip is important for your wellness.",
 		sourceUrl: "https://example.com/source",
 		saved: false,
-		done: false,
 	};
 
 	beforeEach(() => {
@@ -71,7 +69,7 @@ describe("Tip Saving Integration Test", () => {
 			useSavedStore.getState().addTip(tipId, mockTip);
 		};
 
-		render(<TipCard tip={mockTip} onSaveToggle={handleSaveToggle} onMarkDone={jest.fn()} />);
+		render(<TipCard tip={mockTip} onSaveToggle={handleSaveToggle} />);
 
 		// Initial state check
 		expect(useSavedStore.getState().savedTips).toEqual([]);
@@ -101,9 +99,7 @@ describe("Tip Saving Integration Test", () => {
 			useSavedStore.getState().addTip(tipId, mockTip);
 		};
 
-		const { rerender } = render(
-			<TipCard tip={mockTip} onSaveToggle={handleSaveToggle} onMarkDone={jest.fn()} />
-		);
+		const { rerender } = render(<TipCard tip={mockTip} onSaveToggle={handleSaveToggle} />);
 
 		// Click the save button
 		const saveButton = screen.getByLabelText("Save tip");
@@ -115,13 +111,7 @@ describe("Tip Saving Integration Test", () => {
 		});
 
 		// Re-render with updated props
-		rerender(
-			<TipCard
-				tip={{ ...mockTip, saved: true }}
-				onSaveToggle={handleSaveToggle}
-				onMarkDone={jest.fn()}
-			/>
-		);
+		rerender(<TipCard tip={{ ...mockTip, saved: true }} onSaveToggle={handleSaveToggle} />);
 
 		// Check if the UI shows the filled bookmark
 		await waitFor(() => {
@@ -150,11 +140,7 @@ describe("Tip Saving Integration Test", () => {
 
 		// Render with saved=true
 		const { rerender } = render(
-			<TipCard
-				tip={{ ...mockTip, saved: true }}
-				onSaveToggle={handleSaveToggle}
-				onMarkDone={jest.fn()}
-			/>
+			<TipCard tip={{ ...mockTip, saved: true }} onSaveToggle={handleSaveToggle} />
 		);
 
 		// Verify initial state shows filled bookmark
@@ -169,13 +155,7 @@ describe("Tip Saving Integration Test", () => {
 		});
 
 		// Re-render with updated props
-		rerender(
-			<TipCard
-				tip={{ ...mockTip, saved: false }}
-				onSaveToggle={handleSaveToggle}
-				onMarkDone={jest.fn()}
-			/>
-		);
+		rerender(<TipCard tip={{ ...mockTip, saved: false }} onSaveToggle={handleSaveToggle} />);
 
 		// Check if UI shows empty bookmark
 		await waitFor(() => {
@@ -205,7 +185,7 @@ describe("Tip Saving Integration Test", () => {
 			useSavedStore.getState().addTip(tipId, mockTip);
 		};
 
-		render(<TipCard tip={mockTip} onSaveToggle={handleSaveToggle} onMarkDone={jest.fn()} />);
+		render(<TipCard tip={mockTip} onSaveToggle={handleSaveToggle} />);
 
 		// Initial state check
 		expect(useSavedStore.getState().savedTips).toEqual([]);

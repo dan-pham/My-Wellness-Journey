@@ -28,7 +28,6 @@ interface ContentAreaProps {
 	setSearchQuery: (query: string) => void;
 	filteredAndSortedTips: any[];
 	handleSaveToggle: (tipId: string) => void;
-	handleMarkDone: (tipId: string) => void;
 	router: any;
 }
 
@@ -72,7 +71,6 @@ const ContentArea = ({
 	setSearchQuery,
 	filteredAndSortedTips,
 	handleSaveToggle,
-	handleMarkDone,
 	router,
 }: ContentAreaProps) => {
 	if (loading) return <Loading />;
@@ -100,12 +98,7 @@ const ContentArea = ({
 	return (
 		<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 			{filteredAndSortedTips.map((tip) => (
-				<TipCard
-					key={tip.id}
-					tip={tip}
-					onSaveToggle={handleSaveToggle}
-					onMarkDone={handleMarkDone}
-				/>
+				<TipCard key={tip.id} tip={tip} onSaveToggle={handleSaveToggle} />
 			))}
 		</div>
 	);
@@ -139,7 +132,6 @@ export default function SavedTipsPage() {
 		setSortOption,
 		handleSearch,
 		handleSaveToggle,
-		handleMarkDone,
 	} = useTipManagement({
 		initialTips: savedTipsData,
 		onSaveToggle: (tipId) => {
@@ -176,7 +168,6 @@ export default function SavedTipsPage() {
 						setSearchQuery={setSearchQuery}
 						filteredAndSortedTips={filteredAndSortedTips}
 						handleSaveToggle={handleSaveToggle}
-						handleMarkDone={handleMarkDone}
 						router={router}
 					/>
 				</div>

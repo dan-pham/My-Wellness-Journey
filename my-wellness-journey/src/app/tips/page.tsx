@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { FaArrowRight } from "react-icons/fa";
@@ -28,7 +28,6 @@ interface PageTitleProps {
 interface SavedTipsSectionProps {
 	savedTipsData: Tip[];
 	onSaveToggle: (tipId: string) => void;
-	onMarkDone: (tipId: string) => void;
 }
 
 interface QuickSearchProps {
@@ -40,7 +39,6 @@ interface SearchResultsProps {
 	hasSearched: boolean;
 	tips: Tip[];
 	onSaveToggle: (tipId: string) => void;
-	onMarkDone: (tipId: string) => void;
 }
 
 // Components
@@ -51,7 +49,7 @@ const PageTitle = ({ title, subtitle }: PageTitleProps) => (
 	</div>
 );
 
-const SavedTipsSection = ({ savedTipsData, onSaveToggle, onMarkDone }: SavedTipsSectionProps) => (
+const SavedTipsSection = ({ savedTipsData, onSaveToggle }: SavedTipsSectionProps) => (
 	<section className="mb-16">
 		<div className="flex items-center justify-between mb-8">
 			<h2 className="text-2xl font-semibold text-primary-heading">My Saved Tips</h2>
@@ -67,7 +65,7 @@ const SavedTipsSection = ({ savedTipsData, onSaveToggle, onMarkDone }: SavedTips
 		<div className="flex justify-center">
 			<div className="w-full max-w-2xl space-y-4">
 				{savedTipsData.slice(0, 3).map((tip) => (
-					<TipCard key={tip.id} tip={tip} onSaveToggle={onSaveToggle} onMarkDone={onMarkDone} />
+					<TipCard key={tip.id} tip={tip} onSaveToggle={onSaveToggle} />
 				))}
 			</div>
 		</div>
@@ -105,13 +103,7 @@ const QuickSearch = ({ onTopicClick }: QuickSearchProps) => (
 	</div>
 );
 
-const SearchResults = ({
-	isLoading,
-	hasSearched,
-	tips,
-	onSaveToggle,
-	onMarkDone,
-}: SearchResultsProps) => {
+const SearchResults = ({ isLoading, hasSearched, tips, onSaveToggle }: SearchResultsProps) => {
 	if (isLoading) return <Loading />;
 
 	// Show empty state when there are no tips after a search
@@ -131,7 +123,7 @@ const SearchResults = ({
 				<h2 className="text-xl font-semibold mb-4 text-primary-heading">Personalized Tips</h2>
 				<div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
 					{tips.map((tip) => (
-						<TipCard key={tip.id} tip={tip} onSaveToggle={onSaveToggle} onMarkDone={onMarkDone} />
+						<TipCard key={tip.id} tip={tip} onSaveToggle={onSaveToggle} />
 					))}
 				</div>
 			</section>
@@ -173,7 +165,6 @@ export default function TipsPage() {
 		searchQuery,
 		setSearchQuery,
 		handleSaveToggle,
-		handleMarkDone,
 	} = useTipManagement({
 		initialTips: [...(actionableTasks || []), ...savedTipsData],
 		onSaveToggle: async (tipId: string) => {
@@ -256,7 +247,6 @@ export default function TipsPage() {
 					dateGenerated: new Date().toISOString(),
 					tag: [query],
 					saved: false,
-					done: false,
 				}));
 			}
 
@@ -304,7 +294,6 @@ export default function TipsPage() {
 		return {
 			...tipOfTheDay,
 			saved: false,
-			done: false,
 		};
 	}, [tipOfTheDay]);
 
@@ -324,11 +313,11 @@ export default function TipsPage() {
 			/>
 
 			<TipOfTheDay
+				key={`tip-of-day`}
 				tip={preparedTipOfTheDay}
 				isLoading={false}
 				dismissed={false}
 				onSaveToggle={handleSaveToggle}
-				onMarkDone={handleMarkDone}
 				allowDismiss={false}
 				savedTips={savedTips}
 			/>
@@ -343,9 +332,9 @@ export default function TipsPage() {
 
 			{isAuthenticated && savedTipsData.length > 0 && savedTipsVisible && (
 				<SavedTipsSection
+					key={`saved-tips`}
 					savedTipsData={savedTipsData}
 					onSaveToggle={handleSaveToggle}
-					onMarkDone={handleMarkDone}
 				/>
 			)}
 
@@ -360,11 +349,11 @@ export default function TipsPage() {
 				{/* Show SearchResults when searching or after search */}
 				{hasSearched && (
 					<SearchResults
+						key={`search-results`}
 						isLoading={isLoadingTasks}
 						hasSearched={hasSearched}
 						tips={actionableTasks || []}
 						onSaveToggle={handleSaveToggle}
-						onMarkDone={handleMarkDone}
 					/>
 				)}
 

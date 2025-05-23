@@ -80,9 +80,6 @@ export default function DashboardPage() {
 	// Recently viewed resources state
 	const { history: recentlyViewedResources } = useResourceHistoryStore();
 
-	// State for done tips
-	const [doneTips, setDoneTips] = useState<string[]>([]);
-
 	// State to force re-render when savedTips changes
 	const [savedTipsKey, setSavedTipsKey] = useState(0);
 
@@ -98,14 +95,6 @@ export default function DashboardPage() {
 	useEffect(() => {
 		setSavedTipsKey((prev) => prev + 1);
 	}, [savedTips]);
-
-	// Load done tips from localStorage
-	useEffect(() => {
-		const storedDoneTips = localStorage.getItem("doneTips");
-		if (storedDoneTips) {
-			setDoneTips(JSON.parse(storedDoneTips));
-		}
-	}, []);
 
 	// Fetch profile data
 	useEffect(() => {
@@ -170,12 +159,11 @@ export default function DashboardPage() {
 		}
 	}, [fetchTipOfDay, dailyTip, migrateTipIfNeeded]);
 
-	// Prepare the tip with saved and done states
+	// Prepare the tip with saved states
 	const preparedTip = dailyTip
 		? {
 				...dailyTip,
 				saved: savedTips.includes(dailyTip.id),
-				done: doneTips.includes(dailyTip.id),
 		  }
 		: null;
 
@@ -220,18 +208,10 @@ export default function DashboardPage() {
 	const handleShowTip = () => {
 		// First change the state to show the tip
 		showTip();
-		
+
 		// Only show the success message
 		// DON'T show "Tip dismissed for today" message
 		toast.success("Showing today's tip");
-	};
-
-	// Handle marking a tip as done
-	const handleMarkDone = (tipId: string) => {
-		const updatedDoneTips = [...doneTips, tipId];
-		setDoneTips(updatedDoneTips);
-		localStorage.setItem("doneTips", JSON.stringify(updatedDoneTips));
-		toast.success("Tip marked as done");
 	};
 
 	// Handle saving/unsaving a resource
@@ -329,7 +309,6 @@ export default function DashboardPage() {
 									onDismiss={handleDismissTip}
 									onShowTip={handleShowTip}
 									onSaveToggle={handleSaveTip}
-									onMarkDone={handleMarkDone}
 									savedTips={savedTips}
 									allowDismiss={true}
 								/>

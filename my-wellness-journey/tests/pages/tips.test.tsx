@@ -65,22 +65,19 @@ jest.mock("@/app/components/EmptyState", () => ({
 }));
 jest.mock("@/app/components/TipCard", () => ({
 	__esModule: true,
-	default: ({ tip, onSaveToggle, onMarkDone }: any) => (
+	default: ({ tip, onSaveToggle }: any) => (
 		<div data-testid={`tip-card-${tip.id}`}>
 			<h3>{tip.task}</h3>
 			<p>{tip.reason}</p>
 			<button data-testid={`save-button-${tip.id}`} onClick={() => onSaveToggle(tip.id)}>
 				{tip.saved ? "Unsave" : "Save"}
 			</button>
-			<button data-testid={`mark-done-${tip.id}`} onClick={() => onMarkDone(tip.id)}>
-				{tip.done ? "Unmark" : "Mark as Done"}
-			</button>
 		</div>
 	),
 }));
 jest.mock("@/app/components/TipOfTheDay", () => ({
 	__esModule: true,
-	default: ({ tip, onSaveToggle, onMarkDone, onDismiss }: any) => (
+	default: ({ tip, onSaveToggle, onDismiss }: any) => (
 		<section data-testid="tip-of-day-section" className="mb-12">
 			<h2>Today's Wellness Tip</h2>
 			<div data-testid="tip-card-tip-of-day-1">
@@ -88,9 +85,6 @@ jest.mock("@/app/components/TipOfTheDay", () => ({
 				<p>{tip?.reason}</p>
 				<button data-testid={`save-toggle-${tip?.id}`} onClick={() => onSaveToggle(tip?.id)}>
 					Save
-				</button>
-				<button data-testid={`mark-done-${tip?.id}`} onClick={() => onMarkDone(tip?.id)}>
-					Mark as Done
 				</button>
 				{onDismiss && <button onClick={onDismiss}>Dismiss</button>}
 			</div>
@@ -159,7 +153,6 @@ describe("Tips Page", () => {
 				reason: "Monitor your blood sugar levels daily",
 				sourceUrl: "",
 				saved: false,
-				done: false,
 			},
 			{
 				id: "diabetes-task-2",
@@ -167,13 +160,9 @@ describe("Tips Page", () => {
 				reason: "Follow a balanced diet recommended by your doctor",
 				sourceUrl: "",
 				saved: false,
-				done: false,
 			},
 		],
 	};
-
-	// Mock done tips
-	const mockDoneTips = ["diabetes-task-1"];
 
 	beforeEach(() => {
 		jest.clearAllMocks();
@@ -184,7 +173,6 @@ describe("Tips Page", () => {
 		// Mock localStorage
 		const mockLocalStorage = {
 			getItem: jest.fn().mockImplementation((key) => {
-				if (key === "doneTips") return JSON.stringify(mockDoneTips);
 				if (key === "recentSearches") return JSON.stringify(["diabetes", "exercise"]);
 				return null;
 			}),
@@ -556,38 +544,6 @@ describe("Tips Page", () => {
 			expect(mockRemoveTip).toHaveBeenCalledWith(savedTip.id);
 			expect(mockToast.success).toHaveBeenCalledWith("Tip unsaved");
 		});
-	});
-
-	it("handles marking a tip as done", async () => {
-		await act(async () => {
-			render(<TipsPage />);
-		});
-
-		// Use the specific test ID for the search button
-		const searchInput = screen.getByPlaceholderText("Search tips by topic or keyword");
-		const searchButton = screen.getByTestId("tip-search-button");
-
-		// Perform a search
-		await act(async () => {
-			fireEvent.change(searchInput, { target: { value: "diabetes" } });
-			fireEvent.click(searchButton);
-		});
-
-		// Wait for tips to appear
-		await waitFor(() => {
-			const tipCard = screen.getByTestId("tip-card-diabetes-task-1");
-			expect(tipCard).toBeInTheDocument();
-		});
-
-		// Find and click the mark as done button
-		const markDoneButton = screen.getByTestId("mark-done-diabetes-task-1");
-		await act(async () => {
-			fireEvent.click(markDoneButton);
-		});
-
-		// Verify the tip was marked as done (localStorage was updated)
-		const doneTips = JSON.parse(localStorage.getItem("doneTips") || "[]");
-		expect(doneTips).toContain("diabetes-task-1");
 	});
 
 	it("shows toast when trying to save a tip while not authenticated", async () => {

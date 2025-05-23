@@ -41,11 +41,10 @@ jest.mock("react-hot-toast", () => ({
 // Mock components
 jest.mock("@/app/components/Header", () => () => <header>Header</header>);
 jest.mock("@/app/components/Footer", () => () => <footer>Footer</footer>);
-jest.mock("@/app/components/TipCard", () => ({ tip, onSaveToggle, onMarkDone }: any) => (
+jest.mock("@/app/components/TipCard", () => ({ tip, onSaveToggle }: any) => (
 	<div data-testid={`tip-card-${tip.id}`}>
 		<h3>{tip.task}</h3>
 		<button onClick={() => onSaveToggle(tip.id)}>Toggle Save</button>
-		<button onClick={() => onMarkDone(tip.id)}>Toggle Done</button>
 	</div>
 ));
 jest.mock("@/app/components/Loading", () => ({
@@ -81,29 +80,11 @@ describe("SavedTipsPage", () => {
 			reason: "Content of second tip",
 			sourceUrl: "https://example.com/2",
 			saved: true,
-			done: true,
 		},
 	];
 
-	// Mock localStorage
-	const mockLocalStorage: Record<string, string> = {
-		doneTips: JSON.stringify(["tip-2"]),
-	};
-
 	beforeEach(() => {
 		jest.clearAllMocks();
-		mockLocalStorage["doneTips"] = JSON.stringify(["tip-2"]);
-
-		// Mock localStorage
-		Object.defineProperty(window, "localStorage", {
-			value: {
-				getItem: jest.fn((key) => mockLocalStorage[key] || null),
-				setItem: jest.fn((key, value) => {
-					mockLocalStorage[key] = value;
-				}),
-			},
-			writable: true,
-		});
 
 		// Setup store mocks with type assertions
 		(useSavedStore as unknown as jest.Mock).mockReturnValue({
@@ -242,36 +223,5 @@ describe("SavedTipsPage", () => {
 		});
 
 		expect(mockRemoveTip).toHaveBeenCalledWith("tip-1");
-	});
-
-	it("handles marking tip as done", async () => {
-		render(<SavedTipsPage />);
-
-		// Find the card for tip-1 and click its Toggle Done button
-		const tip1Card = screen.getByTestId("tip-card-tip-1");
-		const markDoneButton = within(tip1Card).getByText("Toggle Done");
-		fireEvent.click(markDoneButton);
-
-		// Should update localStorage
-		expect(window.localStorage.setItem).toHaveBeenCalledWith(
-			"doneTips",
-			expect.stringContaining("tip-1")
-		);
-
-		expect(toast.success).toHaveBeenCalledWith("Tip marked as done", expect.anything());
-	});
-
-	it("handles unmarking tip as done", async () => {
-		render(<SavedTipsPage />);
-
-		// Find the card for tip-2 and click its Toggle Done button
-		const tip2Card = screen.getByTestId("tip-card-tip-2");
-		const unmarkDoneButton = within(tip2Card).getByText("Toggle Done");
-		fireEvent.click(unmarkDoneButton);
-
-		// Should update localStorage to remove the tip
-		expect(window.localStorage.setItem).toHaveBeenCalledWith("doneTips", "[]");
-
-		expect(toast.success).toHaveBeenCalledWith("Tip unmarked", expect.anything());
 	});
 });

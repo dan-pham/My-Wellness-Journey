@@ -5,12 +5,11 @@ import { Tip } from "@/types/tip";
 
 // Mock the TipCard component to verify what props it receives
 jest.mock("@/app/components/TipCard", () => {
-	return jest.fn(({ tip, onSaveToggle, onMarkDone }) => (
+	return jest.fn(({ tip, onSaveToggle }) => (
 		<div data-testid="mock-tip-card">
 			<h3 data-testid="tip-task">{tip.task}</h3>
 			<p data-testid="tip-reason">{tip.reason}</p>
 			<button onClick={() => onSaveToggle(tip.id)}>Save Toggle</button>
-			{onMarkDone && <button onClick={() => onMarkDone(tip.id)}>Mark Done</button>}
 		</div>
 	));
 });
@@ -41,11 +40,9 @@ describe("TipOfTheDay Component", () => {
 		reason: "This is important for your wellness",
 		sourceUrl: "https://example.com",
 		saved: false,
-		done: false,
 	};
 
 	const mockOnSaveToggle = jest.fn();
-	const mockOnMarkDone = jest.fn();
 	const mockOnDismiss = jest.fn();
 
 	beforeEach(() => {
@@ -80,7 +77,9 @@ describe("TipOfTheDay Component", () => {
 		);
 
 		expect(screen.getByTestId("dismissed-message")).toBeInTheDocument();
-		expect(screen.getByTestId("dismissed-message")).toHaveTextContent("Your daily wellness tip is hidden");
+		expect(screen.getByTestId("dismissed-message")).toHaveTextContent(
+			"Your daily wellness tip is hidden"
+		);
 
 		const resetButton = screen.getByText("Show Today's Tip");
 		fireEvent.click(resetButton);
@@ -134,7 +133,6 @@ describe("TipOfTheDay Component", () => {
 				isLoading={false}
 				dismissed={false}
 				onSaveToggle={mockOnSaveToggle}
-				onMarkDone={mockOnMarkDone}
 				savedTips={[]}
 			/>
 		);
@@ -181,23 +179,6 @@ describe("TipOfTheDay Component", () => {
 		);
 
 		expect(screen.queryByText("Dismiss for today")).not.toBeInTheDocument();
-	});
-
-	it("passes onMarkDone prop to TipCard when provided", () => {
-		render(
-			<TipOfTheDay
-				tip={mockTip}
-				isLoading={false}
-				dismissed={false}
-				onSaveToggle={mockOnSaveToggle}
-				onMarkDone={mockOnMarkDone}
-				savedTips={[]}
-			/>
-		);
-
-		const markDoneButton = screen.getByText("Mark Done");
-		fireEvent.click(markDoneButton);
-		expect(mockOnMarkDone).toHaveBeenCalledWith(mockTip.id);
 	});
 
 	it("does not render anything when tip is null and not loading", () => {
