@@ -80,12 +80,25 @@ export const useTipOfDayStore = create<TipOfDayState>()(
 						const randomIndex = Math.floor(Math.random() * Math.min(data.results.length, 5));
 						const tipData = data.results[randomIndex];
 
+						// Process the snippet to create an actionable task
+						const processedTitle = tipData.title.replace(/\s+and\s+.*$/, ''); // Take first part before "and"
+						const actionableTask = `Practice healthy ${processedTitle.toLowerCase()}`;
+						
+						// Clean and format the snippet
+						const cleanedSnippet = tipData.snippet
+							.replace(/<\/?[^>]+(>|$)/g, '') // Remove HTML tags
+							.replace(/\s+/g, ' ') // Normalize whitespace
+							.trim();
+
+						// Create a more detailed reason
+						const fullReason = cleanedSnippet.includes('.') 
+							? cleanedSnippet.split('.')[0] + '.' // Take first complete sentence
+							: cleanedSnippet;
+
 						const tip: Tip = {
 							id: `medline-${encodeURIComponent(tipData.url)}`,
-							task: tipData.title || `${randomTopic} tip`,
-							reason: tipData.snippet
-								? tipData.snippet.replace(/<\/?[^>]+(>|$)/g, "")
-								: "Improves your overall health and wellness",
+							task: actionableTask,
+							reason: fullReason,
 							sourceUrl: tipData.url,
 							dateGenerated: new Date().toISOString(),
 							tag: [randomTopic],
