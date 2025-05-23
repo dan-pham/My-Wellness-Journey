@@ -81,33 +81,37 @@ export async function getHealthTopicDetails(url: string): Promise<any> {
 }
 
 /**
- * Fetch MedlinePlus content by ID
+ * Fetch MedlinePlus content by ID or URL
  */
 export async function fetchMedlinePlusById(id: string): Promise<MedlinePlusResponse> {
-	// Format the URL
-	const urlFormatter = new MedlinePlusUrlFormatter(id);
-	const medlineUrl = urlFormatter.format();
+	try {
+		// Extract the topic from the URL or ID
+		let topic = id;
+		if (id.startsWith("medline-")) {
+			const urlFormatter = new MedlinePlusUrlFormatter(id);
+			const url = urlFormatter.format();
+			// Extract the topic from the URL
+			topic = url.split("medlineplus.gov/")[1]?.split("/")[0] || "";
+		}
 
-	// Fetch the content
-	const response = await fetch(medlineUrl, {
-		headers: {
-			Accept: "text/html",
-			"User-Agent": "Mozilla/5.0 (compatible; HealthApp/1.0)",
-		},
-	});
+		// Search for the topic using the API
+		const searchResults = await searchMedlinePlus(topic, 1);
 
-	if (!response.ok) {
-		throw new Error(`MedlinePlus API error: ${response.status}`);
+		if (!searchResults.results.length) {
+			throw new Error("No content found for this topic");
+		}
+
+		const result = searchResults.results[0];
+
+		return {
+			url: result.url,
+			title: result.title,
+			content: result.snippet,
+			metadata: {},
+			source: "MedlinePlus",
+		};
+	} catch (error) {
+		console.error("Error fetching MedlinePlus content:", error);
+		throw error;
 	}
-
-	const html = await response.text();
-	const processor = new HtmlProcessor(html);
-
-	return {
-		url: medlineUrl,
-		title: processor.extractTitle(),
-		content: processor.extractContent(),
-		metadata: processor.extractJsonLd(),
-		source: "MedlinePlus",
-	};
 }

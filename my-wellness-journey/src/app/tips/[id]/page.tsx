@@ -9,6 +9,7 @@ import { processHtmlForDetail } from "@/utils/contentUtils";
 import { useSavedStore } from "@/stores/savedStore";
 import { useAuthStore } from "@/stores/authStore";
 import toast from "react-hot-toast";
+import { MedlinePlusUrlFormatter } from "@/utils/medlineplus/urlFormatter";
 
 // Types
 interface TipDetailData {

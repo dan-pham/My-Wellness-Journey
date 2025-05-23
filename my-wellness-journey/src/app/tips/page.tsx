@@ -206,18 +206,36 @@ export default function TipsPage() {
 	const fetchActionableTasks = async (query: string) => {
 		setIsLoadingTasks(true);
 		try {
+			// First try to get MedlinePlus content
 			const medlineResponse = await fetch(
 				`/api/medlineplus?query=${encodeURIComponent(query)}&maxResults=3`
 			);
+			
+			if (!medlineResponse.ok) {
+				toast.error(`Failed to fetch health tips (${medlineResponse.status})`);
+				setActionableTasks([]);
+				return;
+			}
+
 			const medlineData = await medlineResponse.json();
 
-			let medlineContent = "";
-			if (medlineData.results && medlineData.results.length > 0) {
-				medlineContent = medlineData.results[0].snippet;
+			if (!medlineData.results || medlineData.results.length === 0) {
+				console.log("No results found from MedlinePlus for query:", query);
+				setActionableTasks([]);
+				return;
 			}
+
+			// Get the first article's complete data
+			const firstArticle = medlineData.results[0];
+			const medlineContent = JSON.stringify({
+				title: firstArticle.title,
+				url: firstArticle.url,
+				snippet: firstArticle.snippet
+			});
 
 			const userProfile = isAuthenticated ? user?.profile : null;
 
+			// Then try to get GPT-processed content
 			const response = await fetch("/api/gpt", {
 				method: "POST",
 				headers: {
@@ -231,7 +249,18 @@ export default function TipsPage() {
 			});
 
 			if (!response.ok) {
-				console.error("API returned error status:", response.status);
+				console.error("GPT API error:", response.status);
+				// If GPT fails but we have MedlinePlus results, use those directly
+				const taskTips = medlineData.results.map((result: any) => ({
+					id: `medline-${encodeURIComponent(result.url)}`,
+					task: result.title || "Health Tip",
+					reason: result.snippet || "Improves your overall health and wellness",
+					sourceUrl: result.url || `https://medlineplus.gov/health/${query}`,
+					dateGenerated: new Date().toISOString(),
+					tag: [query],
+					saved: false,
+				}));
+				setActionableTasks(taskTips);
 				return;
 			}
 
@@ -240,10 +269,21 @@ export default function TipsPage() {
 			let taskTips: Tip[] = [];
 			if (data.actionableTasks) {
 				taskTips = data.actionableTasks.map((task: any) => ({
-					id: task.id || `${query}-task-${taskTips.length + 1}`,
+					id: task.id,
 					task: task.task || task.title || "Health Tip",
 					reason: task.reason || task.content || "Improves your overall health and wellness",
-					sourceUrl: task.sourceUrl || "",
+					sourceUrl: task.sourceUrl || `https://medlineplus.gov/health/${query}`,
+					dateGenerated: new Date().toISOString(),
+					tag: [query],
+					saved: false,
+				}));
+			} else if (medlineData.results) {
+				// Fallback to MedlinePlus results if GPT didn't return actionable tasks
+				taskTips = medlineData.results.map((result: any) => ({
+					id: `medline-${encodeURIComponent(result.url)}`,
+					task: result.title || "Health Tip",
+					reason: result.snippet || "Improves your overall health and wellness",
+					sourceUrl: result.url || `https://medlineplus.gov/health/${query}`,
 					dateGenerated: new Date().toISOString(),
 					tag: [query],
 					saved: false,
@@ -356,8 +396,6 @@ export default function TipsPage() {
 						onSaveToggle={handleSaveToggle}
 					/>
 				)}
-
-				{isLoadingTasks && <Loading />}
 			</section>
 		</PageLayout>
 	);

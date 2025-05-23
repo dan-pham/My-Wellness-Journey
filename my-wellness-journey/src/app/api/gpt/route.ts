@@ -1,7 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { searchMedlinePlus } from "@/lib/api/medlineplus";
-import redis, { generateCacheKey, CACHE_TTL } from "@/lib/redis";
+import redis, { generateCacheKey, CACHE_TTL, safeRedisOperation } from "@/lib/redis";
+import { getOpenAIResponse } from "@/lib/api/openai";
+
+interface ActionableTask {
+	id: string;
+	task: string;
+	reason: string;
+	sourceUrl: string;
+}
 
 const openai = new OpenAI({
 	apiKey: process.env.OPENAI_API_KEY,
@@ -12,13 +20,6 @@ interface GPTRequest {
 	query?: string;
 	userProfile?: any;
 	medlineContent?: string;
-}
-
-interface ActionableTask {
-	id: string;
-	task: string;
-	reason: string;
-	sourceUrl: string;
 }
 
 interface GPTResponse {
@@ -94,62 +95,74 @@ async function getChatCompletion(
 	userPrompt: string,
 	shouldFormatAsJson: boolean
 ): Promise<string> {
-	const chatResponse = await openai.chat.completions.create({
-		model: "gpt-4o-mini",
-		messages: [
-			{ role: "system", content: systemPrompt },
-			{ role: "user", content: userPrompt },
-		],
-		temperature: 0.7,
-		response_format: shouldFormatAsJson ? { type: "json_object" } : undefined,
-	});
+	try {
+		const chatResponse = await openai.chat.completions.create({
+			model: "gpt-4o-mini",
+			messages: [
+				{ role: "system", content: systemPrompt },
+				{ role: "user", content: userPrompt },
+			],
+			temperature: 0.7,
+			response_format: shouldFormatAsJson ? { type: "json_object" } : undefined,
+		});
 
-	return chatResponse.choices[0].message.content || "";
+		return chatResponse.choices[0].message.content || "";
+	} catch (error) {
+		console.error("OpenAI API error:", error);
+		throw new Error("Failed to generate response from OpenAI");
+	}
 }
 
 // Main handler function
 export async function POST(req: NextRequest) {
 	try {
-		// Parse request
-		const { prompt, query, userProfile, medlineContent } = await req.json();
+		const { query, userProfile, medlineContent, originalPrompt } = await req.json();
 
-		// Validate inputs
-		if (!prompt && !query) {
-			return NextResponse.json({ error: "Missing prompt or query" }, { status: 400 });
+		// Validate required fields
+		if (!query && !originalPrompt) {
+			return NextResponse.json({ error: "Query or original prompt is required" }, { status: 400 });
 		}
 
-		// Generate cache key based on inputs
-		const cacheKey = generateCacheKey(prompt || "", query, userProfile);
+		// Generate cache key
+		const cacheKey = generateCacheKey(originalPrompt || "", query, userProfile);
 
 		// Try to get cached response
-		const cachedResponse = await redis.get(cacheKey);
+		const cachedResponse = await safeRedisOperation(async () => await redis.get(cacheKey), null);
 		if (cachedResponse) {
 			return NextResponse.json(JSON.parse(cachedResponse));
 		}
-
-		// Fetch MedlinePlus content if needed
-		const contentFromMedline =
-			medlineContent || (query ? await fetchMedlinePlusContent(query) : null);
 
 		// Generate prompts
 		const { systemPrompt, userPrompt } = generatePrompts(
 			query,
 			userProfile,
-			contentFromMedline,
-			prompt
+			medlineContent,
+			originalPrompt
 		);
 
-		// Get chat completion
-		const content = await getChatCompletion(systemPrompt, userPrompt, !!contentFromMedline);
+		// Get response from OpenAI
+		const content = await getChatCompletion(systemPrompt, userPrompt, !!medlineContent);
 
-		// Parse and format response
-		let response: GPTResponse;
+		let response;
 
-		if (!contentFromMedline) {
+		if (!medlineContent) {
 			response = { reply: content };
 		} else {
 			try {
 				response = JSON.parse(content || "{}");
+				
+				// Extract the source URL from the medlineContent object
+				const medlineData = JSON.parse(medlineContent);
+				const sourceUrl = medlineData.url || `https://medlineplus.gov/health/${query}`;
+				
+				// Ensure each task has the proper MedlinePlus URL and ID
+				if (response.actionableTasks) {
+					response.actionableTasks = response.actionableTasks.map((task: ActionableTask) => ({
+						...task,
+						sourceUrl,
+						id: `medline-${encodeURIComponent(sourceUrl)}`,
+					}));
+				}
 			} catch (error) {
 				console.error("Error parsing JSON response:", error);
 				return NextResponse.json(
@@ -162,8 +175,11 @@ export async function POST(req: NextRequest) {
 			}
 		}
 
-		// Cache the response
-		await redis.setex(cacheKey, CACHE_TTL, JSON.stringify(response));
+		// Try to cache the response using safe operation
+		await safeRedisOperation(
+			async () => await redis.setex(cacheKey, CACHE_TTL, JSON.stringify(response)),
+			null
+		);
 
 		return NextResponse.json(response);
 	} catch (err) {

@@ -25,6 +25,7 @@ interface ReasonSectionProps {
 
 interface SourceLinkProps {
 	id: string;
+	sourceUrl?: string;
 }
 
 // Utility Functions
@@ -62,14 +63,24 @@ const ReasonSection: React.FC<ReasonSectionProps> = ({ reason }) => (
 	</div>
 );
 
-const SourceLink: React.FC<SourceLinkProps> = ({ id }) => (
-	<div className="flex justify-end">
+const SourceLink: React.FC<SourceLinkProps> = ({ id, sourceUrl }) => (
+	<div className="flex justify-end gap-4">
 		<Link
 			href={`/tips/${id}`}
 			className="text-primary-accent hover:text-primary-accent/80 transition-colors duration-200"
 		>
-			Read Source
+			Read More
 		</Link>
+		{sourceUrl && (
+			<a
+				href={sourceUrl}
+				target="_blank"
+				rel="noopener noreferrer"
+				className="text-primary-accent hover:text-primary-accent/80 transition-colors duration-200"
+			>
+				Read Source
+			</a>
+		)}
 	</div>
 );
 
@@ -100,7 +111,7 @@ const TipCard: React.FC<TipCardProps> = ({ tip, onSaveToggle }) => {
 		>
 			<TaskSection id={tip.id} task={task} isSaved={isSaved} onSaveToggle={handleSaveToggle} />
 			<ReasonSection reason={reason} />
-			<SourceLink id={tip.id} />
+			<SourceLink id={tip.id} sourceUrl={tip.sourceUrl} />
 		</div>
 	);
 };
