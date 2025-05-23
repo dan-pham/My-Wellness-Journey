@@ -29,7 +29,6 @@ export const useAuthNavigation = () => {
 	const handleLogoutError = (error: unknown) => {
 		console.error("Logout error:", error);
 		toast.error("Error during logout process");
-		performClientSideLogout();
 	};
 
 	const performClientSideLogout = () => {

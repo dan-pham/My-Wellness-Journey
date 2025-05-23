@@ -104,8 +104,8 @@ export const useAuthStore = create<AuthState>()(
 					return storedToken;
 				}
 
-				// If token is invalid or not found, ensure user is logged out
-				if (get().isAuthenticated) {
+				// Only log out if the token is present but invalid (expired), not just missing
+				if (get().isAuthenticated && storedToken && !isTokenValid(storedToken)) {
 					get().logout();
 				}
 
@@ -152,8 +152,7 @@ if (typeof window !== "undefined") {
 				useAuthStore.getState().setLoading(false);
 			});
 	} else {
-		// No valid token, ensure logged out and set loading to false
-		useAuthStore.getState().logout();
+		// No valid token, just set loading to false, don't force logout
 		useAuthStore.getState().setLoading(false);
 	}
 }

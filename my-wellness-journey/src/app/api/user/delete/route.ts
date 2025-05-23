@@ -41,9 +41,14 @@ async function deleteUserHandler(
 			}
 
 			// Verify password
-			const isPasswordValid = await user.comparePassword(password);
-			if (!isPasswordValid) {
-				return NextResponse.json({ error: "Invalid password" }, { status: 401 });
+			try {
+				const isPasswordValid = await user.comparePassword(password);
+				if (!isPasswordValid) {
+					return NextResponse.json({ error: "Invalid password" }, { status: 401 });
+				}
+			} catch (error) {
+				console.error("Password comparison error:", error);
+				return NextResponse.json({ error: "Error verifying password" }, { status: 500 });
 			}
 
 			// Delete user's profile first

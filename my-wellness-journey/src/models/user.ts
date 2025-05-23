@@ -50,11 +50,10 @@ userSchema.pre("save", async function (next) {
 
 // Method to compare passwords
 userSchema.methods.comparePassword = async function (password: string): Promise<boolean> {
-	try {
-		return await bcrypt.compare(password, this.password);
-	} catch (error) {
-		return false;
+	if (!this.password) {
+		throw new Error("Password field not loaded. Use .select('+password') in your query.");
 	}
+	return await bcrypt.compare(password, this.password);
 };
 
 const User = mongoose.models.User || mongoose.model<IUser>("User", userSchema);

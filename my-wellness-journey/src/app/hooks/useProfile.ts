@@ -202,6 +202,7 @@ export const useProfile = () => {
 				throw new Error(errorData.error || "Failed to update email");
 			}
 
+			// Update both profile and auth store
 			setProfile((prev) =>
 				prev
 					? {
@@ -213,6 +214,10 @@ export const useProfile = () => {
 					  }
 					: null
 			);
+
+			// Update auth store with new email
+			const { login } = useAuthStore.getState();
+			login({ ...user!, email: emailData.newEmail });
 
 			toast.success("Email update successful.");
 		} catch (err) {
@@ -265,11 +270,13 @@ export const useProfile = () => {
 				body: JSON.stringify({ password }),
 			});
 
+			const data = await response.json();
+
 			if (!response.ok) {
-				const errorData = await response.json();
-				throw new Error(errorData.error || "Failed to delete account");
+				throw new Error(data.error || "Failed to delete account");
 			}
 
+			// Only proceed with sign out and navigation if deletion was successful
 			toast.success("Account deleted successfully");
 			handleSignOut();
 			router.push("/");

@@ -24,16 +24,16 @@ export const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
 		...options,
 		headers,
 		// Ensure credentials are included in the request to send cookies
-		credentials: 'include' as RequestCredentials,
+		credentials: "include" as RequestCredentials,
 	};
 
 	const response = await fetch(url, updatedOptions);
 
-	// Handle 401 unauthorized responses
-	if (response.status === 401) {
-		// Clear auth state
-		useAuthStore.getState().logout();
-	}
+	// // Handle 401 unauthorized responses
+	// if (response.status === 401) {
+	// 	// Clear auth state
+	// 	useAuthStore.getState().logout();
+	// }
 
 	return response;
 };

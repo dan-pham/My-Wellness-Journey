@@ -14,8 +14,8 @@ type ValidateInputFunction = typeof originalValidateInput;
 
 interface MockUser {
 	_id: string | mongoose.Types.ObjectId;
-	password?: string;
-	comparePassword?: jest.Mock;
+	password: string;
+	comparePassword: jest.Mock;
 	[key: string]: any; // Allow additional properties
 }
 
@@ -232,5 +232,25 @@ describe("User API - Delete Account", () => {
 
 		// Restore console.error
 		console.error = originalConsoleError;
+	});
+
+	// Test 401 when password is incorrect
+	it("should return 401 when password is incorrect", async () => {
+		// Mock comparePassword to return false (incorrect password)
+		mockUser.comparePassword.mockResolvedValue(false);
+
+		const req = createRequest({
+			password: "wrongPassword123",
+		});
+
+		const response = await DELETE(req, { params: {} });
+		const data = await response.json();
+
+		expect(response.status).toBe(401);
+		expect(data.error).toBe("Invalid password");
+
+		// Verify the account was NOT deleted
+		expect(User.findByIdAndDelete).not.toHaveBeenCalled();
+		expect(Profile.findOneAndDelete).not.toHaveBeenCalled();
 	});
 });
