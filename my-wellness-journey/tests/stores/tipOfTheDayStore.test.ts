@@ -99,7 +99,7 @@ describe("tipOfTheDayStore", () => {
 			// Verify the tip properties are correctly set
 			const tip = result.current.tip!;
 			expect(tip.id).toBe("medline-https%3A%2F%2Fmedlineplus.gov%2Ftest");
-			expect(tip.task).toBe("Test Health Topic");
+			expect(tip.task).toBe("Practice healthy test health topic");
 			expect(tip.reason).toBe("This is a test snippet about health");
 			expect(tip.sourceUrl).toBe("https://medlineplus.gov/test");
 			expect(tip.dateGenerated).toBeDefined();
@@ -413,7 +413,7 @@ describe("tipOfTheDayStore", () => {
 
 			// Verify we got the first tip
 			expect(result.current.tip).not.toBeNull();
-			expect(result.current.tip?.task).toBe("First Tip");
+			expect(result.current.tip?.task).toBe("Practice healthy first tip");
 
 			// Reset fetch mock for the second API call
 			mockFetch.mockReset();
@@ -452,7 +452,7 @@ describe("tipOfTheDayStore", () => {
 
 			// Verify we got the second tip
 			expect(result.current.tip).not.toBeNull();
-			expect(result.current.tip?.task).toBe("Second Tip");
+			expect(result.current.tip?.task).toBe("Practice healthy second tip");
 			expect(result.current.tip?.reason).toBe("Second Reason");
 			expect(result.current.tip?.sourceUrl).toBe("https://example.com/2");
 			expect(result.current.tip?.dateGenerated).toBe(mockDate.toISOString());
