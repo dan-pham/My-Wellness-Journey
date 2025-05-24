@@ -1,0 +1,96 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Import Roboto from Google Fonts */
+@import url("https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap");
+
+/* Import custom styles */
+@import './styles/content.css';
+
+:root {
+	--background: #ffffff;
+	--foreground: #171717;
+}
+
+html,
+body {
+	color: var(--foreground);
+	font-family: "Roboto", sans-serif;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+	max-width: 100%;
+	overflow-x: hidden;
+}
+
+/* Full-width section with background */
+.full-width-section {
+	width: 100%;
+	position: relative;
+	overflow: hidden;
+}
+
+/* Container for constrained content */
+.container {
+	width: 100%;
+	max-width: 1200px;
+	margin: 0 auto;
+	padding: 0 1rem;
+}
+
+/* Responsive padding for different screen sizes */
+@media (min-width: 640px) {
+	.container {
+		padding: 0 1.5rem;
+	}
+}
+
+@media (min-width: 1024px) {
+	.container {
+		padding: 0 2rem;
+	}
+}
+
+/* Utility class for full-width backgrounds */
+.full-width-bg {
+	width: 100vw;
+	position: relative;
+	left: 50%;
+	right: 50%;
+	margin-left: -50vw;
+	margin-right: -50vw;
+}
+
+/* Banner styles */
+.banner-content {
+	max-width: 1200px;
+	margin: 0 auto;
+	padding: 0 1rem;
+}
+
+/* Improve focus styles for better accessibility */
+:focus {
+	outline: 2px solid #3a8c96 !important;
+	outline-offset: 2px !important;
+}
+
+/* Ensure text is resizable */
+html {
+	font-size: 100%;
+}
+
+/* High contrast mode improvements */
+@media (forced-colors: active) {
+	:root {
+		--foreground: CanvasText;
+		--background: Canvas;
+	}
+
+	a:focus,
+	button:focus,
+	input:focus,
+	select:focus,
+	textarea:focus {
+		outline: 2px solid CanvasText !important;
+	}
+}
