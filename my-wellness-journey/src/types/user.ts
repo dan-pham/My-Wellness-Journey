@@ -6,7 +6,7 @@ export interface User {
 	profile?: {
 		age?: number;
 		gender?: string;
-		chronicConditions?: Array<{
+		conditions?: Array<{
 			id: string;
 			name: string;
 		}>;

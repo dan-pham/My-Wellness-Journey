@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useCallback } from "react";
 import { useAuthStore } from "@/stores/authStore";
 import { useSavedStore } from "@/stores/savedStore";
 import { useRecommendedResourcesStore } from "@/stores/recommendedResourcesStore";
@@ -175,21 +175,36 @@ export default function RecommendedResources() {
 		setError,
 	} = useRecommendedResourcesStore();
 
-	const fetchRecommendedResources = async () => {
+	const fetchRecommendedResources = useCallback(async () => {
 		setLoading(true);
 		setError(null);
 
 		try {
+			// Get profile data if not already available
+			let profileData = user?.profile;
+
+			if (!profileData && user) {
+				const profileResponse = await fetch("/api/user/profile", {
+					headers: {
+						Authorization: `Bearer ${localStorage.getItem("token")}`,
+					},
+				});
+
+				if (profileResponse.ok) {
+					const data = await profileResponse.json();
+					profileData = data.profile;
+				}
+			}
+
 			// Handle the case for new users with no conditions
-			const conditions = user?.profile?.chronicConditions?.map((c) => c.name) || [];
+			const conditions = profileData?.conditions?.map((c: { name: string }) => c.name) || [];
+
 			const topicsToUse = conditions && conditions.length > 0 ? conditions : DEFAULT_TOPICS;
 
-			// If user is not authenticated or doesn't have a profile yet,
-			// just show general resources
-			if (!user || !user.profile) {
+			// If user is not authenticated or doesn't have a profile yet, just show general resources
+			if (!user || !profileData) {
 				const generalResources = await fetchGeneralResources();
 				setResources(generalResources);
-				setLoading(false);
 				return;
 			}
 
@@ -200,28 +215,34 @@ export default function RecommendedResources() {
 			const gptResponse = await fetch("/api/gpt", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ prompt }),
+				body: JSON.stringify({
+					query: topicsToUse.join(", "),
+					originalPrompt: prompt,
+				}),
 			});
 
 			// If GPT API fails, fall back to default topics and general resources
 			if (!gptResponse.ok) {
 				console.error("Failed to get GPT recommendations, using default topics");
-				const resourcePromises = DEFAULT_TOPICS.slice(0, RESOURCE_LIMIT).map(fetchResourcesByKeyword);
+				const resourcePromises = DEFAULT_TOPICS.slice(0, RESOURCE_LIMIT).map(
+					fetchResourcesByKeyword
+				);
 				const resources = await Promise.all(resourcePromises);
 				const validResources = resources.filter(Boolean) as Resource[];
-				
+
 				if (validResources.length === 0) {
 					const generalResources = await fetchGeneralResources();
 					setResources(generalResources);
 				} else {
 					setResources(validResources);
 				}
-				setLoading(false);
 				return;
 			}
 
 			const gptData: GPTResponse = await gptResponse.json();
+
 			const keywords = gptData.reply ? parseGPTResponse(gptData.reply) : [];
+
 			const finalKeywords = keywords.length > 0 ? keywords : topicsToUse.slice(0, RESOURCE_LIMIT);
 
 			const resourcePromises = finalKeywords.map(fetchResourcesByKeyword);
@@ -237,7 +258,7 @@ export default function RecommendedResources() {
 			setResources(validResources);
 		} catch (error) {
 			console.error("Error fetching recommended resources:", error);
-			
+
 			// Don't show error message, just fall back to general resources
 			const generalResources = await fetchGeneralResources();
 			if (generalResources.length > 0) {
@@ -249,13 +270,13 @@ export default function RecommendedResources() {
 		} finally {
 			setLoading(false);
 		}
-	};
+	}, [user, setLoading, setError, setResources]); // Stable dependencies
 
 	useEffect(() => {
 		if (needsRefresh()) {
 			fetchRecommendedResources();
 		}
-	}, [user?.profile?.chronicConditions]);
+	}, [needsRefresh, user?.profile?.conditions, fetchRecommendedResources]);
 
 	const handleSaveToggle = async (resource: Resource) => {
 		try {

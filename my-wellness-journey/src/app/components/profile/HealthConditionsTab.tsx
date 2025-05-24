@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { FaTimes, FaPlus } from "react-icons/fa";
 import Button from "../Button";
 import { levenshteinDistance } from "@/utils/stringUtils";
+import { useRecommendedResourcesStore } from "@/stores/recommendedResourcesStore";
 
 // Types and Interfaces
 interface HealthCondition {
@@ -145,6 +146,7 @@ export default function HealthConditionsTab({
 	const [suggestions, setSuggestions] = useState<string[]>([]);
 	const [showSuggestions, setShowSuggestions] = useState(false);
 	const suggestionsRef = useRef<HTMLDivElement>(null);
+	const { forceRefresh } = useRecommendedResourcesStore();
 
 	// Handle clicks outside suggestions
 	useEffect(() => {
@@ -216,6 +218,8 @@ export default function HealthConditionsTab({
 
 	const handleSaveConditions = async () => {
 		await onSave(conditions);
+		// Force a refresh of recommended resources
+		forceRefresh();
 	};
 
 	return (
