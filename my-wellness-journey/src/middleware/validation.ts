@@ -106,7 +106,6 @@ export function validateAndSanitizeInput(schema: ValidationSchema) {
 				try {
 					if (!rule.validator(sanitizedData[field])) {
 						fieldErrors.push(rule.message);
-						break; // Stop on first validation failure for this field
 					}
 				} catch (error) {
 					console.error(`Validation error for field ${field}:`, error);

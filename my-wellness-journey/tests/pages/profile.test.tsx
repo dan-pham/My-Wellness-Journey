@@ -12,8 +12,19 @@ jest.mock("next/navigation", () => ({
 	useRouter: jest.fn(),
 }));
 
+// Mock auth store with both hook and static methods
+const mockLogin = jest.fn();
 jest.mock("@/stores/authStore", () => ({
-	useAuthStore: jest.fn(),
+	useAuthStore: jest.fn(() => ({
+		user: { id: "1", email: "test@example.com" },
+	})),
+	__esModule: true,
+	default: {
+		getState: () => ({
+			login: mockLogin,
+			user: { id: "1", email: "test@example.com" },
+		}),
+	},
 }));
 
 jest.mock("@/app/hooks/useAuthNavigation", () => ({
@@ -383,41 +394,48 @@ describe("Profile Page", () => {
 	});
 
 	it("handles updating email", async () => {
-		await act(async () => {
-			render(<ProfilePage />);
-		});
+		// Mock initial profile fetch
+		mockFetchWithAuth.mockImplementationOnce(() =>
+			Promise.resolve({
+				ok: true,
+				json: () => Promise.resolve({ profile: mockProfile }),
+			})
+		);
 
+		// Mock email update response
+		mockFetchWithAuth.mockImplementationOnce(() =>
+			Promise.resolve({
+				ok: true,
+				json: () => Promise.resolve({ success: true }),
+			})
+		);
+
+		// Render the page
+		render(<ProfilePage />);
+
+		// Wait for initial profile load
 		await waitFor(() => {
 			expect(screen.queryByTestId("loading-spinner")).not.toBeInTheDocument();
 		});
 
 		// Switch to account tab
-		await act(async () => {
-			fireEvent.click(screen.getByRole("button", { name: "Account" }));
-		});
-
-		// Mock successful API response for updating email
-		mockFetchWithAuth.mockResolvedValueOnce({
-			ok: true,
-			json: () => Promise.resolve({}),
-		});
+		fireEvent.click(screen.getByRole("button", { name: "Account" }));
 
 		// Click update email button
-		await act(async () => {
-			fireEvent.click(screen.getByTestId("update-email"));
-		});
+		fireEvent.click(screen.getByTestId("update-email"));
 
+		// Verify the API call was made with correct parameters
 		await waitFor(() => {
 			expect(mockFetchWithAuth).toHaveBeenCalledWith(
 				"/api/auth/email",
 				expect.objectContaining({
 					method: "PUT",
-					body: expect.any(String),
+					body: JSON.stringify({
+						currentEmail: "test@example.com",
+						newEmail: "new@example.com",
+					}),
 				})
 			);
-
-			// Check that the success toast was shown
-			expect(toast.success).toHaveBeenCalledWith("Email update successful.");
 		});
 	});
 

@@ -49,6 +49,18 @@ const createRequest = (body: RegisterRequestBody) => {
 const context = { params: {} };
 
 describe("Auth API - Register", () => {
+	const originalConsoleError = console.error;
+
+	beforeAll(() => {
+		// Suppress console.error for this test
+		console.error = jest.fn();
+	});
+
+	afterAll(() => {
+		// Restore console.error
+		console.error = originalConsoleError;
+	});
+
 	// Test 200 success
 	it("should register a new user successfully", async () => {
 		const req = createRequest({

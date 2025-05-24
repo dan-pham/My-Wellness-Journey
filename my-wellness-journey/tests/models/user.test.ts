@@ -90,8 +90,8 @@ describe("User Model", () => {
 		// Set up bcrypt.compare to return true for this specific test
 		(bcrypt.compare as jest.Mock).mockResolvedValueOnce(true);
 
-		// Retrieve the user
-		const savedUser = await User.findOne({ email: "compare@example.com" });
+		// Retrieve the user WITH password field
+		const savedUser = await User.findOne({ email: "compare@example.com" }).select("+password");
 		expect(savedUser).not.toBeNull();
 
 		// Test password comparison
@@ -113,8 +113,8 @@ describe("User Model", () => {
 		// Set up bcrypt.compare to return false for this specific test
 		(bcrypt.compare as jest.Mock).mockResolvedValueOnce(false);
 
-		// Retrieve the user
-		const savedUser = await User.findOne({ email: "compare2@example.com" });
+		// Retrieve the user WITH password field
+		const savedUser = await User.findOne({ email: "compare2@example.com" }).select("+password");
 		expect(savedUser).not.toBeNull();
 
 		// Test password comparison
@@ -198,14 +198,14 @@ describe("User Model", () => {
 			password: "password123",
 		});
 
-		// Retrieve the user
-		const savedUser = await User.findOne({ email: "error@example.com" });
+		// Retrieve the user WITH password field
+		const savedUser = await User.findOne({ email: "error@example.com" }).select("+password");
+		expect(savedUser).not.toBeNull();
 
-		// Make bcrypt.compare throw an error
-		(bcrypt.compare as jest.Mock).mockRejectedValueOnce(new Error("Comparison error"));
+		// Mock bcrypt.compare to throw an error
+		(bcrypt.compare as jest.Mock).mockRejectedValueOnce(new Error("Comparison failed"));
 
-		// Test that comparePassword handles the error
-		const isMatch = await savedUser!.comparePassword("somepassword");
-		expect(isMatch).toBe(false);
+		// Test password comparison
+		await expect(savedUser!.comparePassword("password123")).rejects.toThrow();
 	});
 });

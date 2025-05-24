@@ -62,6 +62,18 @@ describe("Auth API - Login", () => {
 		});
 	});
 
+	const originalConsoleError = console.error;
+
+	beforeAll(() => {
+		// Suppress console.error for this test
+		console.error = jest.fn();
+	});
+
+	afterAll(() => {
+		// Restore console.error
+		console.error = originalConsoleError;
+	});
+
 	// Test 200 success
 	it("should login user with valid credentials", async () => {
 		const req = createRequest({

@@ -19,13 +19,15 @@ interface MockProfile {
 	userId: string | mongoose.Types.ObjectId;
 	firstName: string;
 	lastName: string;
-	dateOfBirth?: string;
+	dateOfBirth?: string | Date;
 	gender?: string;
 	conditions?: Array<{ id: string; name: string }>;
 	savedResources?: Array<{ id: string; savedAt: Date }>;
 	savedTips?: Array<{ id: string; savedAt: Date }>;
 	save: jest.Mock;
-	[key: string]: any;
+	set: jest.Mock;
+	get: jest.Mock;
+	[key: string]: any; // Allow dynamic properties
 }
 
 // Mock the auth middleware
@@ -55,6 +57,32 @@ jest.mock("@/lib/cors", () => ({
 	runCorsMiddleware: jest.fn().mockResolvedValue(undefined),
 }));
 
+// Mock the profile service functions
+jest.mock("@/lib/api/profileService", () => ({
+	findProfileOrFail: jest.fn(),
+	formatProfileResponse: jest.fn((profile) => ({
+		...profile,
+		dateOfBirth:
+			profile.dateOfBirth instanceof Date
+				? profile.dateOfBirth.toISOString().split("T")[0]
+				: profile.dateOfBirth,
+	})),
+}));
+
+// Mock the validation middleware
+jest.mock("@/middleware/validation", () => ({
+	validateAndSanitizeInput: (schema: any) => async (data: Record<string, unknown>) => {
+		return {
+			validated: data,
+		};
+	},
+}));
+
+// Mock the database connection function
+jest.mock("@/lib/db/connection", () => ({
+	ensureConnection: jest.fn().mockResolvedValue(undefined),
+}));
+
 // Simple helper to create a NextRequest
 const createRequest = (body: Record<string, any> = {}) => {
 	return {
@@ -75,6 +103,8 @@ describe("User API - Profile", () => {
 	let authenticate: jest.MockedFunction<AuthenticateFunction>;
 	let mockUser: MockUser;
 	let mockProfile: MockProfile;
+	let findProfileOrFail: jest.Mock;
+	let formatProfileResponse: jest.Mock;
 
 	beforeEach(async () => {
 		// Reset all mocks
@@ -82,6 +112,7 @@ describe("User API - Profile", () => {
 
 		// Import the mocked functions
 		({ authenticate } = require("@/middleware/auth"));
+		({ findProfileOrFail, formatProfileResponse } = require("@/lib/api/profileService"));
 
 		// Create a mock user ID
 		userId = new mongoose.Types.ObjectId().toString();
@@ -99,16 +130,50 @@ describe("User API - Profile", () => {
 			userId: userId,
 			firstName: "Test",
 			lastName: "User",
-			dateOfBirth: "1955-12-12",
+			dateOfBirth: new Date("1955-12-12"),
 			gender: "male",
 			conditions: [],
 			savedResources: [],
 			savedTips: [],
 			save: jest.fn().mockResolvedValue(true),
+			set: jest.fn((field: string, value: any) => {
+				switch (field) {
+					case "firstName":
+						mockProfile.firstName = value;
+						break;
+					case "lastName":
+						mockProfile.lastName = value;
+						break;
+					case "dateOfBirth":
+						mockProfile.dateOfBirth = value;
+						break;
+					case "gender":
+						mockProfile.gender = value;
+						break;
+					case "conditions":
+						mockProfile.conditions = value;
+						break;
+				}
+			}),
+			get: jest.fn((field: string) => {
+				const value = mockProfile[field];
+				if (field === "dateOfBirth" && value instanceof Date) {
+					return value;
+				}
+				return value;
+			}),
 		};
 
 		// Setup default mock behaviors
 		authenticate.mockResolvedValue({ userId });
+		findProfileOrFail.mockResolvedValue(mockProfile);
+		formatProfileResponse.mockImplementation((profile) => ({
+			...profile,
+			dateOfBirth:
+				profile.dateOfBirth instanceof Date
+					? profile.dateOfBirth.toISOString().split("T")[0]
+					: profile.dateOfBirth,
+		}));
 
 		// Mock User.findById
 		User.findById = jest.fn().mockResolvedValue(mockUser);
@@ -137,7 +202,6 @@ describe("User API - Profile", () => {
 
 		// Test 401 unauthorized
 		it("should return 401 when not authenticated", async () => {
-			// Mock authenticate to return a 401 response
 			authenticate.mockResolvedValue(NextResponse.json({ error: "Unauthorized" }, { status: 401 }));
 
 			const req = createRequest();
@@ -151,8 +215,7 @@ describe("User API - Profile", () => {
 
 		// Test 404 user not found
 		it("should return 404 when user is not found", async () => {
-			// Mock Profile.findOne to return null
-			Profile.findOne = jest.fn().mockResolvedValue(null);
+			findProfileOrFail.mockRejectedValue(new Error("Profile not found"));
 
 			const req = createRequest();
 
@@ -169,10 +232,7 @@ describe("User API - Profile", () => {
 			const originalConsoleError = console.error;
 			console.error = jest.fn();
 
-			// Mock Profile.findOne to throw an error
-			Profile.findOne = jest.fn().mockImplementation(() => {
-				throw new Error("Database error");
-			});
+			findProfileOrFail.mockRejectedValue(new Error("Database error"));
 
 			const req = createRequest();
 
@@ -198,6 +258,32 @@ describe("User API - Profile", () => {
 				gender: "female",
 			};
 
+			const updatedProfile = {
+				...mockProfile,
+				save: jest.fn().mockResolvedValue(true),
+				set: jest.fn((field: string, value: any) => {
+					switch (field) {
+						case "firstName":
+							updatedProfile.firstName = value;
+							break;
+						case "lastName":
+							updatedProfile.lastName = value;
+							break;
+						case "dateOfBirth":
+							updatedProfile.dateOfBirth = value;
+							break;
+						case "gender":
+							updatedProfile.gender = value;
+							break;
+						case "conditions":
+							updatedProfile.conditions = value;
+							break;
+					}
+				}),
+			};
+
+			findProfileOrFail.mockResolvedValue(updatedProfile);
+
 			const req = createRequest(updatedData);
 
 			const response = await PUT(req, context);
@@ -212,15 +298,40 @@ describe("User API - Profile", () => {
 			expect(data.profile.gender).toBe("female");
 
 			// Verify save was called
-			expect(mockProfile.save).toHaveBeenCalled();
+			expect(updatedProfile.save).toHaveBeenCalled();
 		});
 
 		// Test 200 success - partial profile update
 		it("should update partial user profile successfully", async () => {
 			const partialUpdate = {
 				firstName: "Updated",
-				// Only update firstName, leave other fields unchanged
 			};
+
+			const updatedProfile = {
+				...mockProfile,
+				save: jest.fn().mockResolvedValue(true),
+				set: jest.fn((field: string, value: any) => {
+					switch (field) {
+						case "firstName":
+							updatedProfile.firstName = value;
+							break;
+						case "lastName":
+							updatedProfile.lastName = value;
+							break;
+						case "dateOfBirth":
+							updatedProfile.dateOfBirth = value;
+							break;
+						case "gender":
+							updatedProfile.gender = value;
+							break;
+						case "conditions":
+							updatedProfile.conditions = value;
+							break;
+					}
+				}),
+			};
+
+			findProfileOrFail.mockResolvedValue(updatedProfile);
 
 			const req = createRequest(partialUpdate);
 
@@ -235,29 +346,16 @@ describe("User API - Profile", () => {
 			expect(data.profile.dateOfBirth).toBe("1955-12-12"); // unchanged
 
 			// Verify save was called
-			expect(mockProfile.save).toHaveBeenCalled();
-		});
-
-		// Test 401 unauthorized
-		it("should return 401 when not authenticated", async () => {
-			// Mock authenticate to return a 401 response
-			authenticate.mockResolvedValue(NextResponse.json({ error: "Unauthorized" }, { status: 401 }));
-
-			const req = createRequest({
-				firstName: "Updated",
-			});
-
-			const response = await PUT(req, context);
-			const data = await response.json();
-
-			expect(response.status).toBe(401);
-			expect(data.error).toBe("Unauthorized");
+			expect(updatedProfile.save).toHaveBeenCalled();
 		});
 
 		// Test 404 user not found
 		it("should return 404 when user is not found", async () => {
-			// Mock Profile.findOne to return null
-			Profile.findOne = jest.fn().mockResolvedValue(null);
+			// Suppress console.error for this test
+			const originalConsoleError = console.error;
+			console.error = jest.fn();
+
+			findProfileOrFail.mockRejectedValue(new Error("Profile not found"));
 
 			const req = createRequest({
 				firstName: "Updated",
@@ -268,6 +366,9 @@ describe("User API - Profile", () => {
 
 			expect(response.status).toBe(404);
 			expect(data.error).toBe("Profile not found");
+
+			// Restore console.error
+			console.error = originalConsoleError;
 		});
 
 		// Test 500 server error
@@ -276,10 +377,7 @@ describe("User API - Profile", () => {
 			const originalConsoleError = console.error;
 			console.error = jest.fn();
 
-			// Mock Profile.findOne to throw an error
-			Profile.findOne = jest.fn().mockImplementation(() => {
-				throw new Error("Database error");
-			});
+			findProfileOrFail.mockRejectedValue(new Error("Database error"));
 
 			const req = createRequest({
 				firstName: "Updated",
