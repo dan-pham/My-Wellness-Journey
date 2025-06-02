@@ -1,16 +1,100 @@
-## Capstone Project 
-We have broken down the Capstone Project into easy-to-follow steps. Each step of the capstone contains a link with instructions for that step.
+# Capstone Project - My Wellness Journey
 
 ## Overview
-For your Capstone Project, you’ll build a more complex database-driven website. This will be a MERN Stack application. This website will be powered either off of an external API or an API that you build yourself. Your finished capstone will be an integral part of your portfolio; it will demonstrate to potential employers everything you’ve learned from this course.We want you to work on a challenging project that will incorporate all of the full-stack skills you’ve been developing. The goal of this project isn’t to create something that’s never been done before but should be ambitious. You could potentially create a website similar to one that already exists, but this time, perhaps add a feature that you wish the website had. We do encourage you to be creative when building your site. You’re free to choose any API you’d like to use or build your own. We encourage you to tap into your imagination throughout the project.
+My Wellness Journey is a personalized health and wellness platform that combines the reliability of government health data (through MyHealthFinder and MedlinePlus APIs) with cutting-edge AI technology (powered by OpenAI) to provide users with tailored wellness recommendations and actionable health insights. The application transforms complex health information into easy-to-understand guidance, while its modern tech stack featuring Next.js, React, and MongoDB ensures a smooth, responsive user experience across all devices. With features like personalized health articles, AI-powered wellness suggestions, and secure user profiles, the platform demonstrates a practical application of modern web technologies to solve real-world health education challenges.
 
-## Examples
-You already know about the wealth of APIs available online. Perhaps on this capstone, you can work on one of your ideas that was a bit too complicated for the last project.We also encourage you to create your own API if you cannot find one with the data you are looking for. You can do this through web scraping, importing a CSV, or loading your own data into the API.
+## Live Demo
+[Check out the app - My Wellness Journey](https://my-wellness-journey.vercel.app/)
 
-Let’s give you an example of what a site could look like. Say you want to make a website or mobile app that was like Facebook for dogs - something that would allow pet owners to connect with other pets in their neighborhood. First, you could load information into the application about various breeds of dogs, which would populate drop down lists and allow users to sort for the kind of dog they would like to sit. This will help users build the profile for their animal. You could add forms with various information about the pets.You could allow them to upload pictures (dog owners love nothing more than to take pictures of their animals). Most importantly, you could allow the pets to connect with other pets through a graph.Now let’s talk about bells and whistles. What if a user of your Dogbook was leaving town and wanted to find users in their neighborhood to watch their dog for the weekend. You could implement a geographical filtering and simple messaging or request system in order to help Spot find the best pet sitter. And since no one wants their dog watched by some kind of monster, you could implement reviews to see if people recommend this sitter. There are a million different features you could add! Verified users, so celebrities could show off their dogs. Hafthor Bjornsson, the actor who plays the Mountain on Game of Thrones, has an adorable pomeranian and people demand picture proof! You could implement an adoption system so people can give shelter pets a good home. Of course, adding in all of these features would be beyond the scope of this project, but you should expect this app to have more functionality than the last Capstone
+## Tech Stack
+- **Frontend**: Next.js, React, TypeScript
+- **Styling**: Tailwind CSS
+- **State Management**: Zustand
+- **Backend**: Next.js API Routes, Node.js
+- **Database**: MongoDB with Mongoose ODM
+- **Authentication**: JWT (JSON Web Tokens), bcryptjs
+- **APIs & Integrations**: OpenAI API with gpt-4o-mini, MyHealthFinder API, MedlinePlus API
+- **Data Parsing**: xml-js (for XML to JSON conversion)
+- **Caching & Performance**: Redis (for caching OpenAI results)
+- **Security & Middleware**: CORS, dotenv, rate-limiting
+- **Hosting**: Vercel
+- **Testing**: Jest, React Testing Library
 
-## Guidelines
-1. Your application should be using MERN stack, and there’s nothing stopping you from using additional outside libraries or services.
-2.The first two steps require mentor approval to proceed, but after that, you are free to continue working on the project after you submit your work. For instance, you don’t need your mentor to approve your database schema before you start working on your site. Likewise, you don’t need your mentor to approve the first iteration of your site before you start polishing it.
-3. If you get stuck, there is a wealth of resources at your disposal. The course contains all of the material you will need to complete this project, but a well-phrased Google search might yield you an immediate solution to your problem. Don’t forget that your Slack community, TAs, and your mentor there to help you out.
-4. Make sure you use a free API or create your own API and deploy your project on Render, so everyone can see your work!
+## Development Tools
+- **ESLint** for code linting
+- **TypeScript** for type safety
+- **Prettier** for code formatting
+- **Babel** for JavaScript compilation
+- **PostCSS** for CSS processing
+
+## Features
+- ✅ User authentication and authorization with JWT and bcryptjs
+- ✅ Personalized health tips using OpenAI and government health APIs
+- ✅ Real-time XML parsing with `xml-js` for structured health data
+- ✅ API caching with Redis for performance optimization
+- ✅ Environment configuration with dotenv
+- ✅ API rate limiting with in-memory store for security
+- ✅ Responsive design with Tailwind CSS
+- ✅ Efficient state management with Zustand
+- ✅ Real-time notifications with react-hot-toast
+
+## Planning Documents
+- [Project Ideas](./planning/Capstone%20Project%20Ideas.pdf)
+- [Final Project Proposal](./planning/Project%20Proposal.pdf)
+- [Frontend Planning](./planning/User%20Flow%20Diagrams.pdf)
+- [Database Model Planning](./planning/Database%20Model%20Diagram.pdf)
+- [API Planning](./planning/API.pdf)
+
+
+## 🚀 Getting Started
+
+### Prerequisites
+- Node.js 18+
+- npm or yarn
+- MongoDB Atlas account or local MongoDB instance
+
+### Installation
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/dan-pham/My-Wellness-Journey.git
+   cd my-wellness-journey
+   ```
+
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+3. Set up environment variables:
+   - Copy `.env.example` to `.env.local`
+   - Update the environment variables with your configuration
+
+4. Run the development server:
+   ```bash
+   npm run dev
+   ```
+
+5. Open [http://localhost:3000](http://localhost:3000) in your browser
+
+## Project Structure
+```
+src/
+├── app/               # Next.js app directory and API routes
+├── components/        # Reusable UI components
+├── config/            # Application configuration
+├── lib/               # Utility functions and API clients
+├── middleware/        # Authentication and API middleware
+├── models/            # MongoDB models and schemas
+├── stores/            # Zustand state management stores
+├── types/             # TypeScript type definitions
+└── utils/             # Utility functions and constants
+```
+
+## Testing
+Tests are written using Jest and React Testing Library. To run tests:
+
+```bash
+# Run all tests
+npm test
+```
