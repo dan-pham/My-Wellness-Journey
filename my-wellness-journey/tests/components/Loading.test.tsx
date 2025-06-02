@@ -15,7 +15,8 @@ describe("Loading Component", () => {
 		expect(spinner).toHaveClass("animate-spin");
 		expect(spinner).toHaveClass("rounded-full");
 		expect(spinner).toHaveClass("border-2");
-		expect(spinner).toHaveClass("border-primary-accent/20");
+		expect(spinner).toHaveClass("border-gray-200");
+		expect(spinner).toHaveClass("border-t-primary-accent");
 	});
 
 	it("renders dots variant correctly", () => {

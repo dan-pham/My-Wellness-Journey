@@ -37,7 +37,7 @@ const Spinner: React.FC<{ size: LoadingSize }> = ({ size }) => (
 		<div
 			className={`animate-spin rounded-full ${
 				size === "lg" ? "border-3" : "border-2"
-			} border-primary-accent/20 ${getSpinnerSize(size)}`}
+			} border-gray-200 border-t-primary-accent ${getSpinnerSize(size)}`}
 		/>
 	</div>
 );
@@ -88,7 +88,10 @@ export const Loading: React.FC<LoadingProps> = ({
 
 	if (overlay) {
 		return (
-			<div data-testid="loading-overlay" className="fixed inset-0 bg-white/80 backdrop-blur-sm z-50 flex items-center justify-center">
+			<div
+				data-testid="loading-overlay"
+				className="fixed inset-0 bg-white/80 backdrop-blur-sm z-50 flex items-center justify-center"
+			>
 				{content}
 			</div>
 		);
